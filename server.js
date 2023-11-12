@@ -31,7 +31,7 @@ const formation_router = require('./routers/formation')
 const formateur_router = require('./routers/formateur')
 const eleve_router = require('./routers/eleve')
 // const note_router = require('./routers/note')
-// const module_router = require('./routers/module')
+const module_router = require('./routers/module')
 // const admin_router = require('./routers/admin')
 
 
@@ -44,7 +44,7 @@ app.use('/formation', formation_router)
 app.use('/formateur', formateur_router)
 app.use('/eleve', eleve_router)
 // app.use('/note', note_router)
-// app.use('/module', module_router)
+app.use('/module', module_router)
 // app.use('/admin', admin_router)
 
 app.all("*", (req, res) => res.status(501).send('What the hell are you doing !?!'))
