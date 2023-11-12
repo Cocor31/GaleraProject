@@ -64,8 +64,26 @@ exports.addFormation = async (req, res) => {
 //     return res.json({ message: `Formation id:${pid} Updated` })
 // }
 
-// exports.deleteFormation = (req, res) => {
-//     let pid = parseInt(req.params.id)
+exports.deleteFormation = async (req, res) => {
+    let pid = parseInt(req.params.id)
 
-//     return res.status(204).json({})
-// }
+    // Vérification si le champ id est présent et cohérent
+    if (!pid) {
+        return res.status(400).json({ message: `Missing Parameter` })
+    }
+
+    try {
+        // Suppression
+        let count = await Formation.destroy({ where: { id: pid } })
+
+        // Test si résultat
+        if (count === 0) {
+            return res.status(404).json({ message: `This formation does not exist !` })
+        }
+        // Message confirmation Deletion
+        return res.json({ message: `Formation (id: ${pid} ) Successfully Deleted. ${count} row(s) deleted` })
+
+    } catch (err) {
+        return res.status(500).json({ message: `Database Error`, error: err })
+    }
+}
