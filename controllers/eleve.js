@@ -39,13 +39,11 @@ exports.getEleve = async (req, res) => {
 
 exports.addEleve = async (req, res) => {
     const { lastname, firstname, email, password, id_formation } = req.body
-    console.log(lastname, firstname, email, password, id_formation)
 
     // Validations des données reçues
     if (!lastname || !firstname || !email || !password || !id_formation) {
         return res.status(400).json({ message: `Missing Data` })
     }
-
 
     try {
         // Vérification si donnée existe déja
