@@ -4,6 +4,8 @@ const DB = require("../db.config")
 const Eleve = DB.Eleve
 const Formation = DB.Formation
 
+const bcrypt = require('bcrypt')
+
 
 /*****************************************/
 /*** Unit route for Eleve resource */
@@ -56,6 +58,9 @@ exports.addEleve = async (req, res) => {
         if (formation === null) {
             return res.status(404).json({ message: `The formation chosen for this eleve does not exist !` })
         }
+        // Password Hash
+        let hash = await bcrypt.hash(password, parseInt("process.env.BCRYPT_SALT_ROUND"))
+        req.body.password = hash
         // Création
         eleve = await Eleve.create(req.body)
         return res.json({ message: 'Eleve Created', data: eleve })

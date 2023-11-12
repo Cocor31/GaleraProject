@@ -3,6 +3,8 @@
 const DB = require("../db.config")
 const Formateur = DB.Formateur
 
+const bcrypt = require('bcrypt')
+
 
 /*****************************************/
 /*** Unit route for Formateur resource */
@@ -50,6 +52,9 @@ exports.addFormateur = async (req, res) => {
         if (formateur !== null) {
             return res.status(409).json({ message: `The formateur ${lastname} ${firstname} already exists !` })
         }
+        // Password Hash
+        let hash = await bcrypt.hash(password, parseInt("process.env.BCRYPT_SALT_ROUND"))
+        req.body.password = hash
         // Création
         formateur = await Formateur.create(req.body)
         return res.json({ message: 'Formateur Created', data: formateur })

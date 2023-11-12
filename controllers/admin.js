@@ -3,6 +3,8 @@
 const DB = require("../db.config")
 const Admin = DB.Admin
 
+const bcrypt = require('bcrypt')
+
 
 /*****************************************/
 /*** Unit route for Admin resource */
@@ -37,10 +39,10 @@ exports.getAdmin = async (req, res) => {
 }
 
 exports.addAdmin = async (req, res) => {
-    const { name } = req.body
+    const { name, password } = req.body
 
     // Validations des données reçues
-    if (!name) {
+    if (!name || !password) {
         return res.status(400).json({ message: `Missing Data` })
     }
 
@@ -50,7 +52,9 @@ exports.addAdmin = async (req, res) => {
         if (admin !== null) {
             return res.status(409).json({ message: `The admin ${name} already exists !` })
         }
-
+        // Password Hash
+        let hash = await bcrypt.hash(password, parseInt("process.env.BCRYPT_SALT_ROUND"))
+        req.body.password = hash
         // Création
         admin = await Admin.create(req.body)
         return res.json({ message: 'Admin Created', data: admin })

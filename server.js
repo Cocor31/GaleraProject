@@ -26,7 +26,7 @@ app.use(express.urlencoded({ extended: true }))
 
 /****************************/
 /*** Import routers modules */
-// const auth_router = require('./routers/auth')
+const auth_router = require('./routers/auth')
 const formation_router = require('./routers/formation')
 const formateur_router = require('./routers/formateur')
 const eleve_router = require('./routers/eleve')
@@ -39,7 +39,7 @@ const admin_router = require('./routers/admin')
 /*** Routage principal*/
 app.get('/', (req, res) => res.send("I'm online good job !"))
 
-// app.use('/auth', auth_router)
+app.use('/auth', auth_router)
 app.use('/formation', formation_router)
 app.use('/formateur', formateur_router)
 app.use('/eleve', eleve_router)
