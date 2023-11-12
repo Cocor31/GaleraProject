@@ -56,7 +56,7 @@ exports.addModule = async (req, res) => {
         if (formation === null) {
             return res.status(404).json({ message: `The formation chosen for this module does not exist !` })
         }
-        // Vérification si formation existe
+        // Vérification si formateur existe
         let formateur = await Formateur.findOne({ where: { id: id_formateur } })
         if (formateur === null) {
             return res.status(404).json({ message: `The formateur chosen for this module does not exist !` })
