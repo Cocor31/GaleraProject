@@ -52,6 +52,11 @@ exports.addFormateur = async (req, res) => {
         if (formateur !== null) {
             return res.status(409).json({ message: `The formateur ${lastname} ${firstname} already exists !` })
         }
+        // Vérification si email existe déja
+        formateur = await Formateur.findOne({ where: { email: email }, raw: true })
+        if (formateur !== null) {
+            return res.status(409).json({ message: `This email already exists for another formateur !` })
+        }
         // Password Hash
         let hash = await bcrypt.hash(password, parseInt("process.env.BCRYPT_SALT_ROUND"))
         req.body.password = hash
