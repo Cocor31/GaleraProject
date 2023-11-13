@@ -33,6 +33,7 @@ const eleve_router = require('./routers/eleve')
 const note_router = require('./routers/note')
 const module_router = require('./routers/module')
 const admin_router = require('./routers/admin')
+const contact_router = require('./routers/contact')
 
 
 /****************************/
@@ -46,6 +47,7 @@ app.use('/eleve', eleve_router)
 app.use('/note', note_router)
 app.use('/module', module_router)
 app.use('/admin', admin_router)
+app.use('/contact', contact_router)
 
 app.all("*", (req, res) => res.status(501).send('What the hell are you doing !?!'))
 
