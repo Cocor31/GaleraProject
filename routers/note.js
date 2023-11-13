@@ -2,6 +2,7 @@
 /*** Import used modules */
 const express = require('express')
 const noteCtrl = require('../controllers/note')
+const jwtCheck = require("../middleware/jwtCheck");
 
 /***************************/
 /*** Get Expresss's router */
@@ -17,12 +18,12 @@ router.use((req, res, next) => {
 
 /************************************/
 /*** Routes for note resource */
-router.get('/', noteCtrl.getAllNotes)
-router.get('/formateur/:id', noteCtrl.getNoteFormateur)
-router.get('/eleve/:id', noteCtrl.getNoteEleve)
-router.get('/:id_formateur/:id_eleve', noteCtrl.getNote)
-router.put('', noteCtrl.addNote)
+router.get('/', jwtCheck(['admin']), noteCtrl.getAllNotes)
+router.get('/formateur/:id', jwtCheck(['admin']), noteCtrl.getNoteFormateur)
+router.get('/eleve/:id', jwtCheck(['admin']), noteCtrl.getNoteEleve)
+router.get('/:id_formateur/:id_eleve', jwtCheck(['admin']), noteCtrl.getNote)
+router.put('', jwtCheck(['admin', 'eleve']), noteCtrl.addNote)
 // router.patch('/:id', noteCtrl.updateNote)  
-router.delete('/:id_formateur/:id_eleve', noteCtrl.deleteNote)
+router.delete('/:id_formateur/:id_eleve', jwtCheck(['admin']), noteCtrl.deleteNote)
 
 module.exports = router

@@ -53,7 +53,7 @@ exports.loginEleve = async (req, res) => {
 
         // JWT generation
         const token = jwt.sign({
-            payload: { userId: eleve.id }
+            payload: { userId: eleve.id, group: "eleve" }
         }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_DURING })
 
         return res.json({ access_token: token })
@@ -85,7 +85,7 @@ exports.loginFormateur = async (req, res) => {
 
         // JWT generation
         const token = jwt.sign({
-            payload: { userId: formateur.id }
+            payload: { userId: formateur.id, group: "formateur" }
         }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_DURING })
 
         return res.json({ access_token: token })
@@ -117,7 +117,7 @@ exports.loginAdmin = async (req, res) => {
 
         // JWT generation
         const token = jwt.sign({
-            payload: { userId: admin.id }
+            payload: { userId: admin.id, group: "admin" }
         }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_DURING })
 
         return res.json({ access_token: token })
