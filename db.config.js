@@ -22,6 +22,7 @@ db.Formateur = require('./models/formateur')(sequelize)
 db.Eleve = require('./models/eleve')(sequelize)
 db.Module = require('./models/module')(sequelize)
 db.Note = require('./models/note')(sequelize)
+db.Admin = require('./models/admin')(sequelize)
 
 /*************************/
 /*** Mise en place des relations */

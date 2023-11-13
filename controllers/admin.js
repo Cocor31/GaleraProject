@@ -1,19 +1,21 @@
 /*************************/
 /*** Import used modules */
 const DB = require("../db.config")
-const Formation = DB.Formation
+const Admin = DB.Admin
+
+const bcrypt = require('bcrypt')
 
 
 /*****************************************/
-/*** Unit route for Formation resource */
+/*** Unit route for Admin resource */
 
-exports.getAllFormations = (req, res) => {
-    Formation.findAll()
-        .then(formations => res.json({ data: formations }))
+exports.getAllAdmins = (req, res) => {
+    Admin.findAll()
+        .then(admins => res.json({ data: admins }))
         .catch(e => res.status(500).json({ message: "Database Error", error: e }))
 }
 
-exports.getFormation = async (req, res) => {
+exports.getAdmin = async (req, res) => {
     let pid = parseInt(req.params.id)
 
     // Vérification si le champ id est présent et cohérent
@@ -23,48 +25,51 @@ exports.getFormation = async (req, res) => {
 
     try {
         // Récupération
-        let formation = await Formation.findOne({ where: { id: pid } })
+        let admin = await Admin.findOne({ where: { id: pid } })
         // Test si résultat
-        if (formation === null) {
-            return res.status(404).json({ message: `This formation does not exist !` })
+        if (admin === null) {
+            return res.status(404).json({ message: `This admin does not exist !` })
         }
         // Renvoi de l'Objet trouvé pour cet Id
-        return res.json({ data: formation })
+        return res.json({ data: admin })
 
     } catch (err) {
         return res.status(500).json({ message: `Database Error`, error: err })
     }
 }
 
-exports.addFormation = async (req, res) => {
-    const { nom, debut, fin } = req.body
+exports.addAdmin = async (req, res) => {
+    const { name, password } = req.body
 
     // Validations des données reçues
-    if (!nom || !debut || !fin) {
+    if (!name || !password) {
         return res.status(400).json({ message: `Missing Data` })
     }
 
     try {
         // Vérification si donnée existe déja
-        let formation = await Formation.findOne({ where: { nom: nom }, raw: true })
-        if (formation !== null) {
-            return res.status(409).json({ message: `The formation ${nom} already exists !` })
+        let admin = await Admin.findOne({ where: { name: name, }, raw: true })
+        if (admin !== null) {
+            return res.status(409).json({ message: `The admin ${name} already exists !` })
         }
+        // Password Hash
+        let hash = await bcrypt.hash(password, parseInt("process.env.BCRYPT_SALT_ROUND"))
+        req.body.password = hash
         // Création
-        formation = await Formation.create(req.body)
-        return res.json({ message: 'Formation Created', data: formation })
+        admin = await Admin.create(req.body)
+        return res.json({ message: 'Admin Created', data: admin })
     } catch (err) {
         return res.status(500).json({ message: `Database Error`, error: err })
     }
 }
 
-// exports.updateFormation = async (req, res) => {
+// exports.updateAdmin = async (req, res) => {
 //     let pid = parseInt(req.params.id)
 
-//     return res.json({ message: `Formation id:${pid} Updated` })
+//     return res.json({ message: `Admin id:${pid} Updated` })
 // }
 
-exports.deleteFormation = async (req, res) => {
+exports.deleteAdmin = async (req, res) => {
     let pid = parseInt(req.params.id)
 
     // Vérification si le champ id est présent et cohérent
@@ -74,14 +79,14 @@ exports.deleteFormation = async (req, res) => {
 
     try {
         // Suppression
-        let count = await Formation.destroy({ where: { id: pid } })
+        let count = await Admin.destroy({ where: { id: pid } })
 
         // Test si résultat
         if (count === 0) {
-            return res.status(404).json({ message: `This formation does not exist !` })
+            return res.status(404).json({ message: `This admin does not exist !` })
         }
         // Message confirmation Deletion
-        return res.json({ message: `Formation (id: ${pid} ) Successfully Deleted. ${count} row(s) deleted` })
+        return res.json({ message: `Admin (id: ${pid} ) Successfully Deleted. ${count} row(s) deleted` })
 
     } catch (err) {
         return res.status(500).json({ message: `Database Error`, error: err })

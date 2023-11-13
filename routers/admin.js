@@ -1,7 +1,7 @@
 /*************************/
 /*** Import used modules */
 const express = require('express')
-const formationCtrl = require('../controllers/formation')
+const adminCtrl = require('../controllers/admin')
 
 /***************************/
 /*** Get Expresss's router */
@@ -11,16 +11,16 @@ let router = express.Router()
 /*** Middleware to log date for each request */
 router.use((req, res, next) => {
     const event = new Date()
-    console.log('Formation Time:', event.toString())
+    console.log('Admin Time:', event.toString())
     next()
 })
 
 /************************************/
-/*** Routes for formation resource */
-router.get('/', formationCtrl.getAllFormations)
-router.get('/:id', formationCtrl.getFormation)
-router.put('', formationCtrl.addFormation)
-// router.patch('/:id', formationCtrl.updateFormation)
-router.delete('/:id', formationCtrl.deleteFormation)
+/*** Routes for admin resource */
+router.get('/', adminCtrl.getAllAdmins)
+router.get('/:id', adminCtrl.getAdmin)
+router.put('', adminCtrl.addAdmin)
+// router.patch('/:id', adminCtrl.updateAdmin)
+router.delete('/:id', adminCtrl.deleteAdmin)
 
 module.exports = router

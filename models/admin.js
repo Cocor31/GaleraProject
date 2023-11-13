@@ -5,31 +5,15 @@ const { DataTypes } = require('sequelize')
 /*************************/
 /*** Import used modules */
 module.exports = (sequelize) => {
-    const Eleve = sequelize.define('Eleve', {
+    const Admin = sequelize.define('Admin', {
         id: {
             type: DataTypes.INTEGER(10),
             primaryKey: true,
             autoIncrement: true
         },
-        id_formation: {
-            type: DataTypes.INTEGER(10),
-            allowNull: false
-        },
-        lastname: {
+        name: {
             type: DataTypes.STRING(100),
             defaultValue: '',
-            allowNull: false
-        },
-        firstname: {
-            type: DataTypes.STRING(100),
-            defaultValue: '',
-            allowNull: false
-        },
-        email: {
-            type: DataTypes.STRING,
-            validate: {
-                isEmail: true,             // Ici une contrainte de données
-            },
             allowNull: false
         },
         password: {
@@ -38,5 +22,5 @@ module.exports = (sequelize) => {
             allowNull: false
         },
     })
-    return Eleve
+    return Admin
 }

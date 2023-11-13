@@ -1,7 +1,7 @@
 /*************************/
 /*** Import used modules */
 const express = require('express')
-const formationCtrl = require('../controllers/formation')
+const moduleCtrl = require('../controllers/module')
 
 /***************************/
 /*** Get Expresss's router */
@@ -11,16 +11,16 @@ let router = express.Router()
 /*** Middleware to log date for each request */
 router.use((req, res, next) => {
     const event = new Date()
-    console.log('Formation Time:', event.toString())
+    console.log('Module Time:', event.toString())
     next()
 })
 
 /************************************/
-/*** Routes for formation resource */
-router.get('/', formationCtrl.getAllFormations)
-router.get('/:id', formationCtrl.getFormation)
-router.put('', formationCtrl.addFormation)
-// router.patch('/:id', formationCtrl.updateFormation)
-router.delete('/:id', formationCtrl.deleteFormation)
+/*** Routes for module resource */
+router.get('/', moduleCtrl.getAllModules)
+router.get('/:id', moduleCtrl.getModule)
+router.put('', moduleCtrl.addModule)
+// router.patch('/:id', moduleCtrl.updateModule) 
+router.delete('/:id', moduleCtrl.deleteModule)
 
 module.exports = router
