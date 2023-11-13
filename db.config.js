@@ -29,6 +29,19 @@ db.Admin = require('./models/admin')(sequelize)
 db.Formation.hasMany(db.Eleve, { foreignKey: 'id_formation' })
 db.Eleve.belongsTo(db.Formation, { foreignKey: 'id_formation' })
 
+db.Formation.hasMany(db.Module, { foreignKey: 'id_formation' })
+db.Module.belongsTo(db.Formation, { foreignKey: 'id_formation' })
+
+db.Formateur.hasMany(db.Module, { foreignKey: 'id_formateur' })
+db.Module.belongsTo(db.Formateur, { foreignKey: 'id_formateur' })
+
+db.Formateur.hasMany(db.Note, { foreignKey: 'id_formateur' })
+db.Note.belongsTo(db.Formateur, { foreignKey: 'id_formateur', onDelete: 'cascade' })
+
+db.Eleve.hasMany(db.Note, { foreignKey: 'id_eleve' })
+db.Note.belongsTo(db.Eleve, { foreignKey: 'id_eleve' })
+
+
 /*************************/
 /*** Synchronisation des modèles */
 db.sequelize.sync({ alter: true })     // permet de synchroniser les models JS avec les tables dans la BDD
