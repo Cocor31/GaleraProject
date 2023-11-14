@@ -53,6 +53,11 @@ exports.addEleve = async (req, res) => {
         if (eleve !== null) {
             return res.status(409).json({ message: `The eleve ${lastname} ${firstname} already exists !` })
         }
+        // Vérification si email existe déja
+        eleve = await Eleve.findOne({ where: { email: email }, raw: true })
+        if (eleve !== null) {
+            return res.status(409).json({ message: `This email already exists for another eleve !` })
+        }
         // Vérification si formation existe
         let formation = await Formation.findOne({ where: { id: id_formation } })
         if (formation === null) {

@@ -48,7 +48,7 @@ app.use('/formateur', jwtCheck(['admin']), formateur_router)
 app.use('/eleve', jwtCheck(['admin']), eleve_router)
 app.use('/note', note_router)
 app.use('/module', jwtCheck(['admin']), module_router)
-app.use('/admin', jwtCheck(['admin']), admin_router)
+app.use('/admin', jwtCheck(['admin']), admin_router)        // <= Remove this MiddleWare for Create First Admin User
 app.use('/contact', contact_router)
 
 app.all("*", (req, res) => res.status(501).send('What the hell are you doing !?!'))
