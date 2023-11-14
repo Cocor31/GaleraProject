@@ -97,15 +97,19 @@ exports.addNote = async (req, res) => {
         if (formateur === null) {
             return res.status(404).json({ message: `The formateur chosen for this note does not exist !` })
         }
-        // Vérification si formateur existe
+        // Vérification si eleve existe
         let eleve = await Eleve.findOne({ where: { id: id_eleve } })
         if (eleve === null) {
             return res.status(404).json({ message: `The eleve chosen for this note does not exist !` })
         }
         // Vérification si module existe
-        let module = await Module.findOne({ where: { id: module_id } })
-        if (module === null) {
+        let myModule = await Module.findOne({ where: { id: module_id } })
+        if (myModule === null) {
             return res.status(404).json({ message: `The module chosen for this note does not exist !` })
+        }
+        // Vérification si formateur est associé au module
+        if (parseInt(myModule.id_formateur) !== parseInt(id_formateur)) {
+            return res.status(404).json({ message: `The module chosen for this note is not associated with this formateur !` })
         }
         // Création
         note = await Note.create(req.body)
