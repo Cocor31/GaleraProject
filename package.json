@@ -5,7 +5,15 @@
   "main": "server.js",
   "scripts": {
     "start": "node -r dotenv/config server.js",
-    "dev": "nodemon -r dotenv/config server.js"
+    "dev": "nodemon -r dotenv/config server.js",
+    "test:route": "DOTENV_CONFIG_PATH=./.env.test jest --no-cache --testTimeout=5000 --detectOpenHandles",
+    "test:watch": "DOTENV_CONFIG_PATH=./.env.test jest --watchAll --detectOpenHandles",
+    "test:visuel": "DOTENV_CONFIG_PATH=./.env.test jest --coverage --detectOpenHandles"
+  },
+  "jest": {
+    "setupFiles": [
+      "dotenv/config"
+    ]
   },
   "keywords": [],
   "author": "",
@@ -19,5 +27,9 @@
     "mongoose": "^8.0.0",
     "mysql2": "^3.6.3",
     "sequelize": "^6.34.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
   }
 }

@@ -25,4 +25,4 @@ const Contact = mongoose.Schema({
 
 
 
-module.exports = mongoose.model("Contact", Contact);
+module.exports = mongoose.model(`${process.env.MONGODB_COLLECTION_NAME}`, Contact);
