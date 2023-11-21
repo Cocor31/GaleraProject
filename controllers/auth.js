@@ -77,7 +77,6 @@ exports.loginFormateur = async (req, res) => {
             return res.status(404).json({ message: `This formateur does not exist !` })
         }
         // Password check  
-        console.log(password)
         let test = await bcrypt.compare(password, formateur.password)
         if (!test) {
             return res.status(401).json({ message: 'Wrong password' })

@@ -3,11 +3,15 @@
 const { Sequelize } = require('sequelize')
 
 /*************************/
+/*** Récupération variables de connexion */
+const { DB_NAME, DB_USER, DB_PASS, DB_HOST, DB_PORT } = JSON.parse(process.env.MARIA_DB_PARAMS)
+
+/*************************/
 /*** Connexion à la base de donnée */
 let sequelize = new Sequelize(
-    process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASS, {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
+    DB_NAME, DB_USER, DB_PASS, {
+    host: DB_HOST,
+    port: DB_PORT,
     dialect: 'mysql',
     logging: false
 }
