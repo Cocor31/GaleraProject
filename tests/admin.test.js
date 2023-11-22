@@ -13,6 +13,7 @@ const eleve = JSON.parse(process.env.ELEVE_TEST)
 const formation = JSON.parse(process.env.FORMATION_TEST)
 const formation_eleve = JSON.parse(process.env.FORMATION_ELEVE_TEST)
 const formateur = JSON.parse(process.env.FORMATEUR_TEST)
+const myModule = JSON.parse(process.env.MODULE_TEST)
 
 /* Connecting to the database before each test. */
 beforeAll(async () => {
@@ -488,4 +489,145 @@ describe('WITH ADMIN ACCOUNT', () => {
             })
         })
     })
+
+    describe('ALTER MODULE DATA', () => {
+        let id_module_created
+        let id_formateur_for_module
+        let id_fomation_for_module
+
+        beforeAll(async () => {
+            // Create Formation
+            res = await request(app)
+                .put('/formation')
+                .set('Authorization', `Bearer ${admin_token}`)
+                .send(formation_eleve)
+            const { body } = res
+            id_fomation_for_module = body.data.id
+
+            // Create Formateur account
+            res = await request(app)
+                .put('/formateur')
+                .set('Authorization', `Bearer ${admin_token}`)
+                .send(formateur)
+            id_formateur_for_module = res.body.data.id
+        })
+
+        afterAll(async () => {
+            // Create Formation
+            res = await request(app)
+                .delete(`/formation/${id_fomation_for_module}`)
+                .set('Authorization', `Bearer ${admin_token}`)
+
+            // Delete Formateur account
+            res = await request(app)
+                .delete(`/formateur/${id_formateur_for_module}`)
+                .set('Authorization', `Bearer ${admin_token}`)
+        })
+
+        describe('GET / endpoint return all modules', () => {
+            let res
+            it('Should return 200 status', async () => {
+                res = await request(app)
+                    .get('/module')
+                    .set('Authorization', `Bearer ${admin_token}`)
+                const { statusCode } = res
+                expect(statusCode).toBe(200);
+            })
+
+            it('Should return Array data', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('data');
+                expect(Array.isArray(body.data)).toBe(true);
+            })
+        })
+
+        describe('PUT / endpoint return the correct response', () => {
+            let res
+            it('Should return 200 status', async () => {
+                res = await request(app)
+                    .put('/module')
+                    .set('Authorization', `Bearer ${admin_token}`)
+                    .send({
+                        ...myModule,
+                        "id_formation": `${id_fomation_for_module}`,
+                        "id_formateur": `${id_formateur_for_module}`,
+                    })
+                const { statusCode } = res
+                expect(statusCode).toBe(200);
+            })
+
+            it('Should return message Module Created', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('message');
+                expect(body.message).toBe("Module Created");
+            })
+            it('Should return data with id_module', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('data');
+                expect(body.data).toHaveProperty('id');
+                id_module_created = body.data.id
+            })
+        })
+
+        describe('GET /:id endpoint return only the module created before', () => {
+            let res
+            it('Should return 200 status', async () => {
+                res = await request(app)
+                    .get(`/module/${id_module_created}`)
+                    .set('Authorization', `Bearer ${admin_token}`)
+                const { statusCode } = res
+                expect(statusCode).toBe(200);
+            })
+
+            it('Should return Array data with only one objet', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('data');
+                const { data } = body
+                expect(Array.isArray(data)).toBe(false);
+                expect(data).toEqual(
+                    expect.objectContaining({
+                        id: expect.any(Number),
+                        nom: expect.any(String),
+                        id_formation: expect.any(Number),
+                        id_formateur: expect.any(Number),
+                    })
+                )
+            })
+        })
+
+        describe('DELETE /:id endpoint return the correct response', () => {
+            let res
+            it('Should return 200 status', async () => {
+                res = await request(app)
+                    .delete(`/module/${id_module_created}`)
+                    .set('Authorization', `Bearer ${admin_token}`)
+                const { statusCode } = res
+                expect(statusCode).toBe(200);
+            })
+
+            it('Should return message Module Deleted', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('message');
+                expect(body.message).toContain('Successfully Deleted')
+            })
+        })
+
+        describe('GET /:id endpoint after deletion', () => {
+            let res
+            it('Should return 404 status', async () => {
+                res = await request(app)
+                    .get(`/module/${id_module_created}`)
+                    .set('Authorization', `Bearer ${admin_token}`)
+                const { statusCode } = res
+                expect(statusCode).toBe(404);
+            })
+
+            it("Should return message Module doesn't exist", async () => {
+                const { body } = res
+                expect(body).toHaveProperty('message');
+                expect(body.message).toBe("This module does not exist !");
+            })
+        })
+    })
+
 })
