@@ -8,6 +8,7 @@ require("dotenv").config();
 
 /* Import Test Account Properties */
 const admin = JSON.parse(process.env.ADMIN_TEST)
+const admin2 = JSON.parse(process.env.ADMIN2_TEST)
 const eleve = JSON.parse(process.env.ELEVE_TEST)
 const formation = JSON.parse(process.env.FORMATION_TEST)
 const formation_eleve = JSON.parse(process.env.FORMATION_ELEVE_TEST)
@@ -280,22 +281,6 @@ describe('WITH ADMIN ACCOUNT', () => {
 
     describe('ALTER FORMATEUR DATA', () => {
         let id_formateur_created
-        // let id_fomation_eleve
-
-        beforeAll(async () => {
-            // res = await request(app)
-            //     .put('/formation')
-            //     .set('Authorization', `Bearer ${admin_token}`)
-            //     .send(formation_eleve)
-            // const { body } = res
-            // id_fomation_eleve = body.data.id
-        })
-
-        afterAll(async () => {
-            // res = await request(app)
-            //     .delete(`/formation/${id_fomation_eleve}`)
-            //     .set('Authorization', `Bearer ${admin_token}`)
-        })
 
         describe('GET / endpoint return all formateurs', () => {
             let res
@@ -396,6 +381,110 @@ describe('WITH ADMIN ACCOUNT', () => {
                 const { body } = res
                 expect(body).toHaveProperty('message');
                 expect(body.message).toBe("This formateur does not exist !");
+            })
+        })
+    })
+
+    describe('ALTER ADMIN DATA', () => {
+        let id_admin_created
+
+        describe('GET / endpoint return all admins', () => {
+            let res
+            it('Should return 200 status', async () => {
+                res = await request(app)
+                    .get('/admin')
+                    .set('Authorization', `Bearer ${admin_token}`)
+                const { statusCode } = res
+                expect(statusCode).toBe(200);
+            })
+
+            it('Should return Array data', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('data');
+                expect(Array.isArray(body.data)).toBe(true);
+            })
+        })
+
+        describe('PUT / endpoint return the correct response', () => {
+            let res
+            it('Should return 200 status', async () => {
+                res = await request(app)
+                    .put('/admin')
+                    .set('Authorization', `Bearer ${admin_token}`)
+                    .send(admin2)
+                const { statusCode } = res
+                expect(statusCode).toBe(200);
+            })
+
+            it('Should return message Admin Created', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('message');
+                expect(body.message).toBe("Admin Created");
+            })
+            it('Should return data with id_admin', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('data');
+                expect(body.data).toHaveProperty('id');
+                id_admin_created = body.data.id
+            })
+        })
+
+        describe('GET /:id endpoint return only the admin created before', () => {
+            let res
+            it('Should return 200 status', async () => {
+                res = await request(app)
+                    .get(`/admin/${id_admin_created}`)
+                    .set('Authorization', `Bearer ${admin_token}`)
+                const { statusCode } = res
+                expect(statusCode).toBe(200);
+            })
+
+            it('Should return Array data with only one objet', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('data');
+                const { data } = body
+                expect(Array.isArray(data)).toBe(false);
+                expect(data).toEqual(
+                    expect.objectContaining({
+                        id: expect.any(Number),
+                        name: expect.any(String),
+                        password: expect.any(String),
+                    })
+                )
+            })
+        })
+
+        describe('DELETE /:id endpoint return the correct response', () => {
+            let res
+            it('Should return 200 status', async () => {
+                res = await request(app)
+                    .delete(`/admin/${id_admin_created}`)
+                    .set('Authorization', `Bearer ${admin_token}`)
+                const { statusCode } = res
+                expect(statusCode).toBe(200);
+            })
+
+            it('Should return message Admin Deleted', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('message');
+                expect(body.message).toContain('Successfully Deleted')
+            })
+        })
+
+        describe('GET /:id endpoint after deletion', () => {
+            let res
+            it('Should return 404 status', async () => {
+                res = await request(app)
+                    .get(`/admin/${id_admin_created}`)
+                    .set('Authorization', `Bearer ${admin_token}`)
+                const { statusCode } = res
+                expect(statusCode).toBe(404);
+            })
+
+            it("Should return message Admin doesn't exist", async () => {
+                const { body } = res
+                expect(body).toHaveProperty('message');
+                expect(body.message).toBe("This admin does not exist !");
             })
         })
     })
