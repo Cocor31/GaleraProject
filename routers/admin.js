@@ -1,6 +1,7 @@
 /*************************/
 /*** Import used modules */
 const express = require('express')
+const logRouters = require("../middleware/logRouters")
 const adminCtrl = require('../controllers/admin')
 
 /***************************/
@@ -9,11 +10,7 @@ let router = express.Router()
 
 /*********************************************/
 /*** Middleware to log date for each request */
-router.use((req, res, next) => {
-    const event = new Date()
-    console.log('Admin Time:', event.toString())
-    next()
-})
+router.use(logRouters('Admin'))
 
 /************************************/
 /*** Routes for admin resource */

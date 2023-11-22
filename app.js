@@ -3,6 +3,7 @@
 const express = require('express')
 const cors = require('cors')
 const jwtCheck = require("./middleware/jwtCheck");
+const logRouters = require("./middleware/logRouters")
 
 
 /************************/

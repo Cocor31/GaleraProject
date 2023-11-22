@@ -12,7 +12,9 @@ exports.initAdminUser = async () => {
 
     // Validations des données reçues
     if (!name || !password) {
-        console.log("Missing Data")
+        if (process.env.LOG_ROUTE_REQUEST.toUpperCase() === "YES") {
+            console.log("Missing Data")
+        }
         return
     }
 
@@ -20,7 +22,9 @@ exports.initAdminUser = async () => {
         // Vérification si donnée existe déja
         let admin = await Admin.findOne({ where: { name: name, }, raw: true })
         if (admin !== null) {
-            console.log(`The admin ${name} already exists !`)
+            if (process.env.LOG_ROUTE_REQUEST.toUpperCase() === "YES") {
+                console.log(`The admin ${name} already exists !`)
+            }
             return
         }
         // Password Hash
@@ -28,7 +32,9 @@ exports.initAdminUser = async () => {
 
         // Création
         admin = await Admin.create({ name: name, password: hash })
-        console.log(`Admin Created!`)
+        if (process.env.LOG_ROUTE_REQUEST.toUpperCase() === "YES") {
+            console.log(`Admin Created!`)
+        }
 
     } catch (err) {
         console.log(`Database Error`, err)
