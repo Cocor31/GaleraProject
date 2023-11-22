@@ -1,6 +1,7 @@
 /*************************/
 /*** Import used modules */
 const express = require('express')
+const logRouters = require("../middleware/logRouters")
 const noteCtrl = require('../controllers/note')
 const jwtCheck = require("../middleware/jwtCheck");
 
@@ -10,11 +11,7 @@ let router = express.Router()
 
 /*********************************************/
 /*** Middleware to log date for each request */
-router.use((req, res, next) => {
-    const event = new Date()
-    console.log('Note Time:', event.toString())
-    next()
-})
+router.use(logRouters('Note'))
 
 /************************************/
 /*** Routes for note resource */

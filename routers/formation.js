@@ -1,6 +1,7 @@
 /*************************/
 /*** Import used modules */
 const express = require('express')
+const logRouters = require("../middleware/logRouters")
 const formationCtrl = require('../controllers/formation')
 
 /***************************/
@@ -9,11 +10,7 @@ let router = express.Router()
 
 /*********************************************/
 /*** Middleware to log date for each request */
-router.use((req, res, next) => {
-    const event = new Date()
-    console.log('Formation Time:', event.toString())
-    next()
-})
+router.use(logRouters('Formation'))
 
 /************************************/
 /*** Routes for formation resource */
