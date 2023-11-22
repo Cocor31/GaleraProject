@@ -2,7 +2,8 @@ const mongoose = require("mongoose");
 let DB = require('../db.config');
 const request = require("supertest");
 const app = require("../app");
-const init_test = require("./init")
+const init_test = require("./init");
+const { INTEGER } = require("sequelize");
 
 require("dotenv").config();
 
@@ -14,6 +15,7 @@ const formation = JSON.parse(process.env.FORMATION_TEST)
 const formation_eleve = JSON.parse(process.env.FORMATION_ELEVE_TEST)
 const formateur = JSON.parse(process.env.FORMATEUR_TEST)
 const myModule = JSON.parse(process.env.MODULE_TEST)
+const note = JSON.parse(process.env.NOTE_TEST)
 
 /* Connecting to the database before each test. */
 beforeAll(async () => {
@@ -513,7 +515,7 @@ describe('WITH ADMIN ACCOUNT', () => {
         })
 
         afterAll(async () => {
-            // Create Formation
+            // Delete Formation
             res = await request(app)
                 .delete(`/formation/${id_fomation_for_module}`)
                 .set('Authorization', `Bearer ${admin_token}`)
@@ -626,6 +628,180 @@ describe('WITH ADMIN ACCOUNT', () => {
                 const { body } = res
                 expect(body).toHaveProperty('message');
                 expect(body.message).toBe("This module does not exist !");
+            })
+        })
+    })
+
+    describe('ALTER NOTE DATA', () => {
+        let id_formation_for_note
+        let id_formateur_for_note
+        let id_eleve_for_note
+        let id_module_for_note
+
+        beforeAll(async () => {
+            // Create Formation
+            res = await request(app)
+                .put('/formation')
+                .set('Authorization', `Bearer ${admin_token}`)
+                .send(formation_eleve)
+            id_formation_for_note = res.body.data.id
+
+            // Create Formateur account
+            res = await request(app)
+                .put('/formateur')
+                .set('Authorization', `Bearer ${admin_token}`)
+                .send(formateur)
+            id_formateur_for_note = res.body.data.id
+
+            // Create Eleve account
+            res = await request(app)
+                .put('/eleve')
+                .set('Authorization', `Bearer ${admin_token}`)
+                .send({
+                    ...eleve,
+                    "id_formation": `${id_formation_for_note}`,
+                })
+            id_eleve_for_note = res.body.data.id
+
+            // Create Module
+            res = await request(app)
+                .put('/module')
+                .set('Authorization', `Bearer ${admin_token}`)
+                .send({
+                    ...myModule,
+                    "id_formation": `${id_formation_for_note}`,
+                    "id_formateur": `${id_formateur_for_note}`,
+                })
+            id_module_for_note = res.body.data.id
+        })
+
+        afterAll(async () => {
+            // Delete Module
+            res = await request(app)
+                .delete(`/module/${id_module_for_note}`)
+                .set('Authorization', `Bearer ${admin_token}`)
+
+            // Delete Formation
+            res = await request(app)
+                .delete(`/formation/${id_formation_for_note}`)
+                .set('Authorization', `Bearer ${admin_token}`)
+
+            // Delete Formateur account
+            res = await request(app)
+                .delete(`/formateur/${id_formateur_for_note}`)
+                .set('Authorization', `Bearer ${admin_token}`)
+
+            // Delete Eleve account
+            res = await request(app)
+                .delete(`/eleve/${id_eleve_for_note}`)
+                .set('Authorization', `Bearer ${admin_token}`)
+        })
+
+        describe('GET / endpoint return all notes', () => {
+            let res
+            it('Should return 200 status', async () => {
+                res = await request(app)
+                    .get('/note')
+                    .set('Authorization', `Bearer ${admin_token}`)
+                const { statusCode } = res
+                expect(statusCode).toBe(200);
+            })
+
+            it('Should return Array data', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('data');
+                expect(Array.isArray(body.data)).toBe(true);
+            })
+        })
+
+        describe('PUT / endpoint return the correct response', () => {
+            let res
+            it('Should return 200 status', async () => {
+                res = await request(app)
+                    .put('/note')
+                    .set('Authorization', `Bearer ${admin_token}`)
+                    .send({
+                        "id_formateur": `${id_formateur_for_note}`,
+                        "id_eleve": `${id_eleve_for_note}`,
+                        "value": parseInt(note.value),
+                        "comment": note.comment,
+                        "module_id": `${id_module_for_note}`,
+                    })
+                const { statusCode } = res
+                expect(statusCode).toBe(200);
+            })
+
+            it('Should return message Note Created', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('message');
+                expect(body.message).toBe("Note Created");
+            })
+            it('Should return data', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('data');
+                expect(body.data).toHaveProperty('id');
+                id_module_created = body.data.id
+            })
+        })
+
+        describe('GET /:id endpoint return only the note created before', () => {
+            let res
+            it('Should return 200 status', async () => {
+                res = await request(app)
+                    .get(`/note/${id_formateur_for_note}/${id_eleve_for_note}`)
+                    .set('Authorization', `Bearer ${admin_token}`)
+                const { statusCode } = res
+                expect(statusCode).toBe(200);
+            })
+
+            it('Should return Array data with only one objet', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('data');
+                const { data } = body
+                expect(Array.isArray(data)).toBe(false);
+                expect(data).toEqual(
+                    expect.objectContaining({
+                        id_formateur: expect.any(Number),
+                        id_eleve: expect.any(Number),
+                        value: expect.any(Number),
+                        comment: expect.any(String),
+                        module_id: expect.any(Number),
+                    })
+                )
+            })
+        })
+
+        describe('DELETE /:id endpoint return the correct response', () => {
+            let res
+            it('Should return 200 status', async () => {
+                res = await request(app)
+                    .delete(`/note/${id_formateur_for_note}/${id_eleve_for_note}`)
+                    .set('Authorization', `Bearer ${admin_token}`)
+                const { statusCode } = res
+                expect(statusCode).toBe(200);
+            })
+
+            it('Should return message Note Deleted', async () => {
+                const { body } = res
+                expect(body).toHaveProperty('message');
+                expect(body.message).toContain('Successfully Deleted')
+            })
+        })
+
+        describe('GET /:id endpoint after deletion', () => {
+            let res
+            it('Should return 404 status', async () => {
+                res = await request(app)
+                    .get(`/note/${id_formateur_for_note}/${id_eleve_for_note}`)
+                    .set('Authorization', `Bearer ${admin_token}`)
+                const { statusCode } = res
+                expect(statusCode).toBe(404);
+            })
+
+            it("Should return message Note doesn't exist", async () => {
+                const { body } = res
+                expect(body).toHaveProperty('message');
+                expect(body.message).toBe("This note does not exist !");
             })
         })
     })
