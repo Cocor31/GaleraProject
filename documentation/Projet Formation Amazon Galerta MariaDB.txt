@@ -1,0 +1,1395 @@
+##############################################################################
+#	Projet Cluster Galera MariaDB en Réplication Maitre	
+##############################################################################
+
+Galera est une bonne base de démarrage pour des cluster Mysql/MariaDB.
+
+Simple à mettre en place, bien qu'on puisse très bien le configurer dans tous les sens.
+Dans les liens ci dessous vous avez la procédure classique pour un montage de Cluster Galera en Réplication Maitre
+
+Pour faire simple pas de Primaire pas de secondaire, plusieurs Maître pour faire de la réplication sur chaque serveur.
+Haute Disponibilité et backup garantie !
+
+On est toujours sur le bon vieux principe d'un nombre de nodes impair pour éviter le Split Brain.
+Bien sûr il est possible de monter un Arbitre (cf le dernier lien)
+
+
+Liens Playlist Projet tutoré Florian
+https://www.youtube.com/playlist?list=PLwJWw4Pbl4w9bZcu6T57CYsxE95wSzGn7
+https://www.youtube.com/watch?v=q8p6cli8Fwc&list=PLwJWw4Pbl4w9bZcu6T57CYsxE95wSzGn7
+
+Vidéo fin Stephanie:
+https://drive.google.com/file/d/1Ao1ccb6Bk3wkqQ0jZDHAw3iTlM6GvXQd/view?usp=drive_link
+
+Vidéo fin Ando:
+https://www.youtube.com/live/pr7msz-Q1DQ?si=7kasq7pkj-Tc66fN
+
+Lien paquet génération api florian:
+https://www.npmjs.com/package/@faisonslepoint/expi
+
+
+Lien 1er document guide Cluster Galera
+Cluster de base de données:
+https://www.it-connect.fr/comment-mettre-en-place-mariadb-galera-cluster-sur-debian-11/
+
+Lien 2eme doc liste des ports à ouvrir
+sur doc galera installer un cluster 
+https://www.malekal.com/galera-installer-un-cluster-mariadb-mysql-sur-debian-10/
+
+Autres liens Galera:
+https://www.ionos.fr/digitalguide/hebergement/aspects-techniques/mariadb-galera-cluster/?authuser=0
+https://galeracluster.com/library/documentation/arbitrator.html?authuser=0
+
+
+Créer une paire de clef SSH:
+https://www.digitalocean.com/community/tutorials/how-to-configure-ssh-key-based-authentication-on-a-linux-server-fr?authuser=0
+
+
+##############################################################################
+#	Mise en place des Serveurs Galera:		
+##############################################################################	
+
+Page d'acceuil Console Amazon (AWS management console)
+http//eu-west-3.console.aws.amazon.com
+
+mon service EC2:
+https://eu-west-3.console.aws.amazon.com/ec2/home?region=eu-west-3#Home:
+
+facture amazon:
+https://us-east-1.console.aws.amazon.com/billing/home?region=eu-west-3#/
+
+vérifier: zone géographique paris en haut à gauche
+
+
+serveur = instance chez Amazon
+
+groupe sécurité sert à ouvrir les ports 
+ 
+#=====================================	
+#	Créer nos 3 instances dans AWS EC2
+#=====================================
+
+-> Instances
+-> Lancer des instances
+-> nom: SG-1 (SG-2, SG-3)
+-> nb instance 1
+-> Debian 12
+-> t2.micro (offre gratuite)
+-> selection clé ssh ou création clé ssh  (à mettre dans user/.ssh sur PC)    J'en ai créé une qui s'appelle amazon_ssh
+-> parametre réseau: vérifier adresse publique = activer(carte réseau externe)
+-> Firewall (groupe de sécurité): soit sélectionner un groupe déja crée soit le laisser en créer un 
+-> Lancer instance
+
+
+
+-> cliquer lancer des instances
+-> formule gratuite
+
+-> nom: MARCEL
+-> Debian 12
+-> type instance t2.micro
+-> groupe sécu nom launch-wizard-1
+-> création clé ssh  (à mettre dans user/.ssh sur PC)
+-> parametre réseau: activer adresse publique(carte réseau externe)
+
+On peut voir ip public, ip privé dans dashboard sur l'instance crée
+Je vais me connecter via l'adresse public
+
+connexion SHH:
+aide amazon se connecter quand on est sur une instance
+
+#=====================================	
+#	Info Serveurs
+#=====================================
+SG-1 	ssh -i ".\.ssh\amazon_ssh.pem" admin@13.39.87.148		172.31.36.222
+SG-2 	ssh -i ".\.ssh\amazon_ssh.pem" admin@13.37.213.150		172.31.43.88
+SG-3	ssh -i ".\.ssh\amazon_ssh.pem" admin@52.47.173.209		172.31.43.255
+
+#=====================================	
+#	Connexion ssh aux serveurs + Mise à jour paquets
+#=====================================
+
+Ouvrir un terminal powerShell sur PC et fractionner en 3
+
+dans chacune des fraction powerShell se connecter en ssh à l'adresse publique avec la cmd:
+	ssh -i ".\.ssh\amazon_ssh.pem" admin@13.39.87.148
+	ssh -i ".\.ssh\amazon_ssh.pem" admin@13.37.213.150
+	ssh -i ".\.ssh\amazon_ssh.pem" admin@52.47.173.209
+
+possibilité de faire connection ssh avec DNS en faisaint aide amazon se connecter quand on est sur une instance 	
+
+( pour quiter connexion: -> exit )
+
+Installer paquets sur machine debian sur laquel on est connectée en ssh (sur chacun des serveurs):
+	sudo apt update && sudo apt upgrade -y
+	sudo apt install net-tools
+	
+
+#=====================================	
+#	Installation MariaDB et Galera
+#=====================================
+(sur chacun des serveurs)
+
+installation MariaDB:
+	sudo apt install mariadb-server    ou   sudo apt-get install mariadb-server
+	
+vérifier si le paquet galera s'est déja installé avec MariaDB server:
+	cd /etc/mysql/mariadb.conf.d/
+	ls
+	-> si on voit le fichier 60-galera.cnf   => C'est OK Galera est installé
+	
+	-> Sinon il faut installer Galera 4:
+		sudo apt-get install galera-4
+
+
+#=====================================	
+#	Création d'un groupe Sécurité (ouverture ports)
+#=====================================
+pour les ports à ouvrir voir ici, il y a une liste des ports utilisé par Galéra :
+https://www.malekal.com/galera-installer-un-cluster-mariadb-mysql-sur-debian-10/
+
+
+On créer un groupe de sécurité général qu'on doit rattacher à tous nos noeuds
+
+Pour créer un Groupe de sécurité:
+	=> Groupe de sécurité à gauche => créer un groupe de sécurité
+	=> nom: ex: GaleraSecu, description: blablabla
+	=> Faire règles:
+	--------------------------------------------------------------------
+	Ouverture de façon global pour l'instant est après on les fermera	
+	--------------------------------------------------------------------
+	On doit ouvrir les port suivant: 
+	SSH		22 		0.0.0.0/0  ->   pour connexion ssh
+	TCP 	3306	0.0.0.0/0
+	TCP 	4567	0.0.0.0/0
+	UDP 	4567	0.0.0.0/0
+	TCP 	4568	0.0.0.0/0
+	TCP 	4444	0.0.0.0/0
+	
+	/!\ Ne pas oublier après d'ouvrir seulement pour l'adresse IP concernée (d'après moi, surement IP privée de notre Haproxy)
+	
+	=> valider sur "Créer un groupe de sécurité"
+
+Après on doit après aller sur chaque instance pour les mettre sur ce groupe de sécurité:
+	-> entrer sur instance
+	-> action -> sécurité -> modifier les groupes de sécurité
+	-> groupe de sécurité associer: choisir GaleraSecu 
+	-> Ajouter
+	-> On peut supprimer l'ancien groupe aussi qui était par défaut
+	-> Enregister
+		
+		
+#=====================================	
+#	Configuration de Galera
+#=====================================
+(sur chacun des serveurs)
+
+	cd /etc/mysql/mariadb.conf.d/
+	ls
+	sudo nano 60-galera.cnf		ou 		sudo nano /etc/mysql/mariadb.conf.d/60-galera.cnf
+	
+Il faudra mettre le même contenu sur les 3 machines
+contenu de notre fichier 60-galera.cnf: attention adresse ip privées (internes), clustername, et default_storage_engine, bind-adresse: tout venant
+##########################################
+[galera]
+# Mandatory settings
+wsrep_on = ON
+wsrep_provider = /usr/lib/galera/libgalera_smm.so
+wsrep_cluster_name = "Unlearn Galera"
+wsrep_cluster_address = gcomm://172.31.36.222,172.31.43.88,172.31.43.255
+binlog_format = row
+default_storage_engine = InnoDB
+innodb_autoinc_lock_mode = 2
+innodb_force_primary_key = 1
+
+# Allow server to accept connections on all interfaces.
+bind-address = 0.0.0.0
+
+# Optional settings
+#wsrep_slave_threads = 1
+#innodb_flush_log_at_trx_commit = 0
+#log_error = /var/log/mysql/error-galera.log
+##########################################
+On peut aussi ajouter des options qu'il faudra changer sur les 3 noeuds pour mettre les valeurs correspondantes
+wsrep_node_name = "SRV-DEB-1-Noeud-1"
+wsrep_node_address = "192.168.100.51"
+
+(la 1ere adresse privée doit etre celle qui tiens le cluster, là où on démarrera le cluster)
+
+/!\ Si on met un log error il faut créer le dossier correspondant au chemin
+
+
+
+#=====================================	
+#	Démarrer le Cluster Galera
+#=====================================
+
+----------------------
+Sur 1er Noeud (SG-1) 	=> Sur terminal où on est connecté au SG-1 avec ssh -i ".\.ssh\amazon_ssh.pem" admin@13.39.87.148
+----------------------
+stopper MariaDB:
+	sudo systemctl stop mariadb
+	
+initialisation du cluster Galera:
+	sudo galera_new_cluster
+	
+connexion à notre instance locale MariaDB pour regarder combien de nœuds constituent notre cluster : en toute logique un seul.
+connexion par root car on n'a pas initialisé d'utlisateur avec sudo mysql_secure_installation pour l'exercice
+	sudo mysql
+
+Vérifier nombre de noeud de notre cluster	
+récupérer propriété "wsrep_cluster_size"
+	show global status like 'wsrep_cluster_size%';
+	-> Si Value = 1 : Tout est ok notre noeud est créé
+	-> Sinon taper commande pour chercher erreur: show global status like 'wsrep%';
+	
+----------------------
+Démarrer les 2 autres noeuds (SG-2 et SG-3)
+----------------------
+Sur Chacun des serveurs SG-2 et SG-3 (termial 2 et 3)
+
+configurer le fichier "60-galera.cnf" avec le même contenu que pour le SG-1:
+	-> Si ce n'est pas déja fait sur ce serveur : ->sudo nano /etc/mysql/mariadb.conf.d/60-galera.cnf -> coller config
+	
+redémarrer l'instance MariaDB de SG-2 ou SG-3 pour l'intégrer au cluster
+	sudo systemctl restart mariadb
+
+----------------------
+Vérification Démarrage des noeuds
+----------------------	
+Vérifier sur terminal SG-1 les noeuds présent dans le cluster:
+	sudo mysql
+	show global status like 'wsrep_cluster_size%';
+	-> Si Value = 2 : Tout est ok notre nouveau noeud est ajouté 'la valeur sera à 3 après le démarrage du dernier serveur)
+	-> Sinon taper commande pour chercher erreur: show global status like 'wsrep%';
+
+On peut vérifier aussi avec la commande: Si on a déja créer le dossier var/log/mysql
+	tail -f /var/log/mysql/error-galera.log
+
+
+=> On peut maintenant créer une base de donnée dans notre SG-1 et elle sera dupliquée dans SG-2 et SG-3
+
+
+---------------------------
+Pour info: L'état des noeuds du cluster Galera
+---------------------------	
+On peut vérifier l'état local des noeuds. Sur chacun on peud:
+
+se connecter à MariaDB si ce n'est pas fait:
+	sudo mysql
+	
+vérifier que la valeur de la variable suivante est bien à "Synced":
+	show status like 'wsrep_local_state_comment';
+	
+vérifier si le noeud local est capable de traiter suffisamment rapidement les opération de réplica:
+	show status like 'wsrep_local_recv_queue_avg';
+	=> si la valeur est à "0", c'est tout bon. Par contre, si la valeur est supérieure à 0, cela signifie qu'il n'arrive pas à suivre.
+	
+vérifier si l'hôte est actuelle sur l'état "Primary" ou pas:
+	show status like 'wsrep_cluster_status';
+	=> Si "Primary" OK
+	=> Sinon il n'est plus dans la grappe primaire, il ne sera plus sollicité même s'il est en ligne.
+		Ce phénomène peut se produire si le nœud est isolé à cause d'un problème réseau et qu'il ne parvient plus à contacter les deux autres noeuds de notre cluster à trois noeuds.
+		Dans ce cas, il faut simplement relancer le service MariaDB sur ce noeud avec :
+			sudo systemctl restart mariadb
+	Si jamais voir doc Monitoring Cluster Officielle: https://galeracluster.com/library/documentation/monitoring-cluster.html
+	   
+
+
+#=====================================	
+#	Eteindre Serveurs si besoin
+#=====================================
+	(dans chacun de nos terminaux)
+	sudo systemctl stop mariadb          (sur n'importe quel servers primaire ou secondaire)
+
+
+
+
+
+#=====================================	
+#	Création HaProxy
+#=====================================
+On décide que le port de sortie de notre Proxy sera le port 4002
+
+
+----------------------------------------
+	Création Groupe de sécurité spécifique au HaProxy
+----------------------------------------
+Pour créer un Groupe de sécurité:
+	=> Groupe de sécurité à gauche => créer un groupe de sécurité
+	=> nom: ex: HaproxySecu, description: blablabla
+	=> Faire règles:
+	--------------------------------------------------------------------
+	Ouverture de façon global pour l'instant est après on les fermera	
+	--------------------------------------------------------------------
+	On doit ouvrir les port suivant: 
+	SSH		22 		0.0.0.0/0  ->   pour connexion ssh
+	TCP 	4002	0.0.0.0/0
+
+	/!\ Ne pas oublier après d'ouvrir seulement pour l'adresse IP concernée (d'après moi, surement IP privée de notre API qui sera sur une instance aussi)
+	
+	=> valider sur "Créer un groupe de sécurité"
+
+----------------------------------------
+	Création d'une nouvelle instance AWS EC2 pour HaProxy
+----------------------------------------
+
+-> Instances
+-> Lancer des instances
+-> nom: HAPROXY
+-> nb instance 1
+-> Debian 12
+-> t2.micro (offre gratuite)
+-> selection de ma clé déja créée qui est "amazon_ssh"
+-> parametre réseau: vérifier adresse publique = activer(carte réseau externe)
+-> Firewall (groupe de sécurité): sélectionner celui qu'on vient de créer "HaproxySecu"
+-> Lancer instance
+
+
+----------------------------------------
+	Connexion ssh à l'instance HaProxy + Mise à jour paquets
+----------------------------------------
+Se connecter à l'instance eb SSH depuis un terminal: ( fractionner le terminal du SG-1 )
+	ssh -i ".\.ssh\amazon_ssh.pem" admin@35.180.32.146
+	
+installation paquets sur debian
+	sudo apt update && sudo apt upgrade -y
+	sudo apt install net-tools	
+
+installation paquets HAProxy
+	sudo apt install haproxy      ou 			sudo apt-get install haproxy
+	
+----------------------------------------
+	Configuration HaProxy
+----------------------------------------
+Faire une copie du haproxy.cfg d'origine par securité: 
+	cd /etc/haproxy/
+	sudo cp haproxy.cfg haproxy.cfg.copy
+
+Ouvrir le fichier de config haparoxy situé dans /etc/haproxy/ :
+	sudo nano /etc/haproxy/haproxy.cfg
+
+Modifier le contenu du fichier /etc/haproxy/haproxy.cfg	par:  (ne pas oublier de remplacer nos adresses publics de chaque noeud)
+##############################################	
+# Proxy for Galegeade cluster
+listen galera
+		bind 172.31.45.2:4002
+		balance source
+		mode tcp
+		option tcpka
+		server node1 172.31.36.222:3306 check weight 1
+		server node2 172.31.43.88:3306 check weight 1
+		server node3 172.31.43.255:3306 check weight 1
+##############################################	
+
+bind: mettre l'adresse IP privé du serveur (instance HAPROXY) , celle qu'on peut voir à l'intérieur du serveur (pour moi: 172.31.45.2)
+	  le port correspond à celui qu'on a choisi (et aussi ouvert sur le groupe sécu Haproxy) ici port 4002 (définie sur feuile de route)
+	  => bind est-ce que l'on appele un socket
+server: mettre les adresses IP privées de chaque serveur (SG-1,SG-2,SG-3)
+		port 3306 qui correspond au port par défaut pour les connexions client MySQL
+		
+		
+Il est possible d'ajouter une option "option mysql-check user haproxy" ,après option tcpka, qui dirait à HaProxy
+de tenter d'établir la connexion par une requête basique
+Il faudrait alors créer un user dans le cluster pour HaProxy à utiliser quand il se connecte:
+CREATE USER 'haproxy'@'127.0.0.1';   (dans MariaDB)
+
+
+----------------------------------------
+	Démarrage HaProxy
+----------------------------------------
+Dans l'instance où HaProxy est installé et configurer (ici instance: HAPROXY)	
+
+Lancer le haproxy avec:
+	sudo systemctl restart haproxy
+	
+Vérifier lancement
+	sudo netstat -peanut
+	-> on doit voir programme haproxy sur un port :4002 et sur l'adresse privée de notre haproxy. 
+	C'est la couche amazon qui permet de renvoyer l'adresse public de notre proxy vers sont adresse privée
+	
+ou optionnel Pour etre sûr qu'il est lancé: (mais on ne voit pas qu'il écoute bien sur le bon port)
+	sudo service haproxy status
+	
+#=====================================	
+#	Info Instance Proxy
+#=====================================
+HAPROXY 	 ssh -i ".\.ssh\amazon_ssh.pem" admin@35.180.32.146		172.31.45.2
+
+
+
+
+
+
+
+
+#=====================================	
+#	Privilege admin sur MariaDB
+#=====================================
+Sur server SG-1:
+Se connecter en root si on n'a pas encore sécuriser la base de donnée avec un utilisateur admin
+	sudo mysql
+Définir et donner tous les privilèges en local à un utilisateur admin
+	GRANT ALL ON *.* TO 'admin'@'localhost' IDENTIFIED BY 'nimda' WITH GRANT OPTION;
+	
+#=====================================	
+#	Supprimer Table MariaDB
+#=====================================
+Se connecter en root si on n'a pas encore sécuriser la base de donnée avec un utilisateur admin
+	sudo mysql
+	use Database_Name
+Désactiver le check des clés étrangères si besoin:	
+	SET FOREIGN_KEY_CHECKS=0;
+Supprimer Tables:
+	DROP TABLE Formateurs, Eleves;
+
+
+#=====================================	
+#	Création Database en donnant les droits à utilisateur
+#=====================================
+---------------------
+Création BDD sur le noeud SG-1
+---------------------
+Se connecter en root si on n'a pas encore sécuriser la base de donnée avec un utilisateur admin
+	sudo mysql
+	
+Créer database
+	CREATE DATABASE galera;
+	
+Donner les droits partout(local et extérieur) à un utilisateur sur la database:
+	GRANT ALL ON galera.* TO 'roger'@'%' IDENTIFIED BY 'regor';
+	
+
+
+
+#=====================================	
+#	Test de notre système
+#=====================================
+Ouvrir un nouveau terbinal Debian par exemple avec mariaDB installé
+
+Connexion à la base de donnés avec utilisateur:
+	mysql -u roger -pregor -h 35.180.32.146 --port=4002
+	
+	( -h: host => on met l'adresse Publique du HaProxy  ;  --port => celui qu'on à defini pour le proxy, ici 4002)
+
+Affcher les bases de données:
+	SHOW DATABASES;
+	=> Si on voit bien celle créér juste avant "galera"  => tout est OK
+	
+On pourrait voir la connexion qu'on vient d'établir sur le HaProxy en faisant:
+	sudo netstat -peanut | grep 4002
+	=> on doit voir notre ip public du PC => pour la connaitre on peut chercher sur google "mon ip v4" et prendre le premier site
+
+#=====================================	
+#	Reboot GALERA
+#=====================================
+REBOOT GALERA
+// Reboot propre suivant la documentation
+https://galeracluster.com/documentation/html_docs_sst-timeout/training/tutorials/restarting-cluster.html
+
+// Solution rapide pour test
+https://dba.stackexchange.com/a/308882
+
+
+##############################################################################
+#		Création API Express	
+##############################################################################	
+
+
+#=====================================	
+#	Initialisation Projet
+#=====================================
+Dans un terminal Debian:
+Créer un dossier "GaleraProject":
+	mkdir GaleraProject
+
+Ouvrir VSCode depuis le dossier du projet:
+	cd GaleraProject
+	code .
+
+#=====================================	
+#	Génération Template API
+#=====================================	
+Soit utiliser le paquet génération api de florian soit faire la manuellement en suivant les étapes suivantes
+
+lien paquet npm florian pour génération API Express:
+https://www.npmjs.com/package/@faisonslepoint/expi
+
+Dans terminal Debian se placer dans notre dossier projet "GaleraProject":
+Vérifier si node installé:
+	node -v
+
+Sinon l'installer node:
+	sudo apt-get install npm		ou 		sudo apt install nodejs
+
+Installer paquet Florian:
+	sudo npm install -g @faisonslepoint/expi
+	
+Lancer Création dans le dossier où on se situe avec le ".":
+	expi .	
+	=>Selectionner Add ressources avec la fleche clavier
+entrer les ressources(tables) séparées par une virgule:
+	formation,formateur,eleve,note,module,admin
+	=> Do you want JWT authentication ? => YES
+	
+Lancer VSCode:
+	code .
+	
+
+
+
+#=====================================	
+#	Installation des paquets
+#=====================================
+
+	npm init -y
+	npm i express bcrypt cors dotenv jsonwebtoken sequelize mysql2 mongoose
+	
+#=====================================	
+#	Fichier Server.js
+#=====================================
+créer sous racine du projet:
+	server.js
+	
+import des modules
+	const express = require('express')
+	const cors = require('cors')
+	
+créer fichier ".env" pour y mettre:
+	API_PORT=11000        <= qui est le port qu'on a défini au début pour notre API
+
+mettre le contenu suivant:
+	/*************************/
+	/*** Import used modules */
+	const express = require('express')
+	const cors = require('cors')
+
+
+	/*************************/
+	/*** Connexion à la base de donnée */
+
+
+	/************************/
+	/*** API Initialization */
+	const app = express()
+
+	app.use(cors({
+		origin: "*",
+		methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+		allowedHeaders: "Origin, X-Requested-With, x-access-token, role, Content, Accept, Content-Type, Authorization"
+	}))
+
+	app.use(express.json())
+	app.use(express.urlencoded({ extended: true }))
+
+
+	/****************************/
+	/*** Routers*/
+
+
+	/****************************/
+	/*** Démarrage de l'API*/
+	app.listen(process.env.API_PORT, () => {
+		console.log(`This server is running on port ${process.env.API_PORT}. Have fun !`)
+	})
+
+
+dans package.json mettre server.js sur variable main:
+	"main": "server.js",
+	
+puis mettre les script de démarrage:	
+	"scripts": {
+	"start": "node -r dotenv/config server.js",
+	"dev": "nodemon -r dotenv/config server.js"
+	},
+
+
+lancer pour test démarrage API
+	npm run dev
+	
+	
+	
+#=====================================	
+#	Connexion BDD MariaDB
+#=====================================
+dans fichier .env ajouter les variables suivantes:
+	DB_HOST=35.180.32.146      <=  adresse public de notre Proxy
+	DB_PORT=4002			   <=  port d'entré de notre Proxy
+	DB_NAME=galera			   <=  nom de notre BDD MariaDB
+	DB_USER=roger
+	DB_PASS=regor
+
+
+créer un fichier "db.config.js" et y mettre le contenu suivant:
+	/*************************/
+	/*** Import used modules */
+	const { Sequelize } = require('sequelize')
+
+	/*************************/
+	/*** Connexion à la base de donnée */
+	let sequelize = new Sequelize(
+		process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASS, {
+		host: process.env.DB_HOST,
+		port: process.env.DB_PORT,
+		dialect: 'mysql',
+		logging: false
+	}
+	)
+	module.exports = sequelize
+	
+dans server.js ajouter import de la db config:
+	let DB = require('./db.config')
+	
+et refaire le démarage de l'API conditionner par le DB.authenticate:
+	/****************************/
+	/*** Démarrage de l'API*/
+	DB.authenticate()
+		.then(() => console.log('MariaDB Connexion OK'))
+		.then(() => {
+			app.listen(process.env.API_PORT, () => {
+				console.log(`This server is running on port ${process.env.API_PORT}. Have fun !`)
+			})
+		})
+		.catch(e => console.log('Database Error', e))
+
+On peut faire le test en redémarrant le server si on l'avait arréter:
+	npm run dev
+	=> si message "MariaDB Connexion OK" et "This server is running on port ..."  => Tout est OK, on est connecté à MariaDB
+
+
+#=====================================	
+#	Creation BDD Mongo Atlas
+#=====================================
+
+info compte:
+@: cocor31+mongo@live.fr
+M: n****
+Project: GaleraProject
+U: cocor31
+P: Auz40ww05l991chc
+connection string: mongodb+srv://cocor31:Auz40ww05l991chc@galera.tnd8mfi.mongodb.net/?retryWrites=true&w=majority
+--------------------------
+Créer un compte sur https://www.mongodb.com/products/platform/cloud ou utiliser un compte existant en utilisant https://cloud.mongodb.com/
+
+créer déploiment:
+	-> M0 (gratuit)
+	-> AWS
+	-> Paris (eu-west-3)
+	-> Culster name: Galera
+	-> Create
+
+Récupérer username et password pour l'admin du cluster Galera
+U: cocor31
+P: Auz40ww05l991chc
+	-> Create User
+	-> Select "Cloud Environnement
+	-> Ajouter IP 0.0.0.0/0 -> Add Entry
+
+Pour voir comment se connecter faire:
+	-> Database ( à gauche)
+	-> Connect (à coté de notre database "Galera")
+	-> Drivers
+
+Récupérer connection string template et remplacer le password par celui du user admin créer 
+
+#=====================================	
+#	Connexion BDD Atlas
+#=====================================
+Ajouter la connection string mongo dans ".env":
+	MONGODB_URL=mongodb+srv://cocor31:Auz40ww05l991chc@galera.tnd8mfi.mongodb.net/?retryWrites=true&w=majority
+
+dans server.js ajouter import de mongoose:
+	const mongoose = require('mongoose')
+
+et refaire le démarage de l'API conditionner par le démarrage de MongoDB puis MariaDB:	
+	/****************************/
+	/*** Démarrage de l'API*/
+	mongoose
+		.connect(process.env.MONGODB_URL)
+		.then(() => {
+			console.log('MongoDB Connexion OK')
+			DB.authenticate()
+				.then(() => console.log('MariaDB Connexion OK'))
+				.then(() => {
+					app.listen(process.env.API_PORT, () => {
+						console.log(`This server is running on port ${process.env.API_PORT}. Have fun !`)
+					})
+				})
+				.catch(e => console.log('Database Error - MariaDB', e))
+		})
+		.catch(e => console.log('Database Error - MongoDB', e))
+		
+On peut faire le test en redémarrant le server si on l'avait arréter:
+	npm run dev
+	=> si message "MongoDB Connexion OK" et "MariaDB Connexion OK" et "This server is running on port ..."  => Tout est OK, on est connecté à MongoDB et MariaDB
+
+#=====================================	
+#	Création Models MariaDB
+#=====================================
+Créer dossier "models" à la racine du projet:
+
+créer dedans ce dossier "models" nos fichiers model pour entités: eleve, formateur, formation, module, note
+ 
+exemple pour "formation.js":
+	/*************************/
+	/*** Import used modules */
+	const { DataTypes } = require('sequelize')
+
+	/*************************/
+	/*** Import used modules */
+	module.exports = (sequelize) => {
+		const Formation = sequelize.define('Formation', {
+			id: {
+				type: DataTypes.INTEGER(10),
+				primaryKey: true,
+				autoIncrement: true
+			},
+			nom: {
+				type: DataTypes.STRING(100),
+				defaultValue: '',
+				allowNull: false
+			},
+			debut: {
+				type: DataTypes.INTEGER(10),
+				defaultValue: 0,
+				allowNull: false
+			},
+			fin: {
+				type: DataTypes.INTEGER(10),
+				defaultValue: 0,
+				allowNull: false
+			},
+		})
+		return Formation
+
+
+#=====================================	
+#	Appel des Models dans Config Mariadb
+#=====================================
+Dans notre fichier "db.config.js" ajouter:
+	/*************************/
+	/*** Appel des modèles */
+	const db = {}
+	db.sequelize = sequelize
+	db.Formation = require('./models/formation')(sequelize)
+	db.Formateur = require('./models/formateur')(sequelize)
+	db.Eleve = require('./models/eleve')(sequelize)
+	db.Module = require('./models/module')(sequelize)
+	db.Note = require('./models/note')(sequelize)
+
+Ajouter la synchronisation des modèles avec les tables:	
+	/*************************/
+	/*** Synchronisation des modèles */
+	db.sequelize.sync({ alter: true })     // permet de synchroniser les models JS avec les tables dans la BDD
+
+	/!\ Cette synchronisation des modèles est à commenter une fois que l'application est stable. Elle peut engendrer de gros problème en cas d'erreur de code en mode de déploiement
+
+modifier export:
+	module.exports = sequelize => module.exports = db
+
+Dans server.js modifier la ligne:
+	DB.authenticate() => DB.sequelize.authenticate() 
+	car nous avons créer un objet(avec sequelize + les models) pour export de db.config.js
+
+#=====================================	
+#	Ajout des Relations dans Config Mariadb
+#=====================================
+Dans notre fichier "db.config.js" ajouter avant la synchronisation des modèles:
+	/*************************/
+	/*** Mise en place des relations */
+	db.Formation.hasMany(db.Eleve, { foreignKey: 'id_formation' })
+	db.Eleve.belongsTo(db.Formation, { foreignKey: 'id_formation' })
+
+
+#=====================================	
+#	Test Connexion BDD pour voir si tout se passe bien
+#=====================================
+
+Dans terminal Debian se connecter avec notre user créer avant sur l'entrée de notre proxy(adresse publique):
+	mysql -u roger -pregor -h 35.180.32.146 --port=4002
+	SHOW DATABASES;
+	use galera
+	show tables;
+	=> On devrait voir nos tables correspondantes aux models
+	DESCRIBE Eleves;
+	=> On peut voir le detail de nos table avec les clés étrangères taggée en MUL
+	
+	
+#=====================================	
+#	Controlers
+#=====================================
+Créer dossier "controllers" à la racine du projet:	
+
+créer dedans ce dossier "controllers" nos fichiers controleur pour entités: eleve, formateur, formation, module, note
+
+exemple pour "formation.js":
+
+
+????????????????????    Arreté à 38:50 min de la vidéo de Stéphanie
+			Lien vidéo  de Stéphanie:
+			https://drive.google.com/file/d/1Ao1ccb6Bk3wkqQ0jZDHAw3iTlM6GvXQd/view?usp=drive_link
+			Manque à faire routage pour formation
+			Mon projet est dans Debian sous le dossier GaleraProjectManu
+			Le projet généré par l'outil de Florian est dans Debian sous GaleraProject
+			Repository Galera Project créé dans GitHub
+			Ma database est Galera 2 en local sur Debian
+			MOngoDB sur google perso:  https://cloud.mongodb.com/v2/654f9ca2ac46db73e05ffca1#/clusters
+
+
+#=====================================	
+#	Routers spécifique à nos entités
+#=====================================	
+Créer dossier "routers" à la racine du projet:
+créer dedans ce dossier "routers" nos fichiers router pour entités: eleve, formateur, formation, module, note
+
+
+#=====================================	
+#	Routage principal
+#=====================================	
+dans fichier server.js ajouter:
+
+	
+	
+	
+##############################################################################
+#		GIT	/GITHUB
+##############################################################################		
+ voir vidéo Florian à partir de 1:18:00:
+ https://www.youtube.com/watch?v=OfS8zLH626A&list=PLwJWw4Pbl4w9bZcu6T57CYsxE95wSzGn7&index=4
+ 
+#=====================================	
+#	Installer Git
+#=====================================
+installer git sur debian:
+	sudo apt install git
+
+#=====================================	
+#	Git en ligne de commande
+#=====================================
+Dans terminal VSCode sur quand on est situé dans dossier racine de notre projet:
+Initialiser git:
+	git init
+	
+créer fichier .gitignore dans notre projet et y mettre:
+	node_modules
+	.env
+	
+voir état de nos fichiers:
+	git status
+	
+stager nos fichiers en salle d'attente:
+	git add .		<= "." pour tous les fichiers dans notre dossier courant
+	
+annuler add:
+	git reset HEAD -- .
+	
+faire commit:
+	git commit -m "first commit"
+	
+si le commit ne passe pas car nom manquant faire:
+	git config --global user.name "Cocor_Laptop"
+
+annuler commit
+	git reset --soft HEAD~
+	
+renommer branche principale master -> main
+	git branch -M main
+
+créer une branche "dev":
+		git branch dev
+		
+passer sur une branche:
+	git checkout dev
+	
+merger branch dev sur main:
+	git checkout main     (ou master)
+	git merge -m "Your merge commit message" dev
+	
+	
+#=====================================	
+#	Git visuel
+#=====================================
+Il faut ajouter l'extension git graph sur VSCode
+Dans VSCode cliquer sur Git Graph
+On peut double cliquer sur une version pour la voir de suite dans VScode (c'est comme un checkout)
+
+
+#=====================================	
+#	Git distant  GITHUB
+#=====================================
+ voir vidéo Florian à partir du début :
+ https://www.youtube.com/watch?v=OfS8zLH626A&list=PLwJWw4Pbl4w9bZcu6T57CYsxE95wSzGn7&index=5
+ 
+créer dépot git distant sur github ex: GaleraProject
+
+connecter notre dépot local avec le distant:
+dans notre terminal vscode faire:
+	git remote add origin https://github.com/Cocor31/GaleraProject.git
+
+voir si on est connecté à un dépot distant:
+	git remote -v
+	=> si on voit les fetch et ?
+
+envoyer branch main sur dépot distant
+	git push -u origin main    (ou master)
+
+on peut envoyer d'autre branch sur dépot distant (ex:dev)
+	git push -u origin dev
+	
+récupérer le code sur notre branch
+	git pull origin main       (ou master)
+
+récupérer code distant(surgithub) en local:
+	récupérer l'url sur github
+puis dans terminal se placer dans dossier où on veut le code	
+	git clone url_du_code_git
+	git clone url_du_code_git .  <= le "." permet de ne pas ramener le dossier package  
+
+Récuperer code sans la config git:
+	degit url_du_code_git        <=   installer degit avec : sudo npm i -g degit   
+
+
+#=====================================	
+#	Ajouter test dans le code
+#=====================================
+
+Doc Jest:
+https://jestjs.io/fr/docs/expect#expectanyconstructor
+
+voir vidéo Florian à partir de 1:09:00 :
+https://www.youtube.com/watch?v=OfS8zLH626A&list=PLwJWw4Pbl4w9bZcu6T57CYsxE95wSzGn7&index=5
+
+vidéo youtube autre exemple:
+https://www.youtube.com/watch?v=HgN8kEwH7lQ&list=PLf5Q5MgfovDkw-yIMoxGFBqemC5mRLHjo&index=15
+
+--------------------------	
+   Installation paquets
+--------------------------
+J'installe les paquet pour les tests:
+	npm i -D jest supertest      <=  -D pour qu'ils se mettentent sous devDependance dans package.json
+	
+	
+--------------------------	
+Exporter variable app
+--------------------------
+Il faut exporter la variable app dans server.js pour être utiliser dans les tests
+Dans server.js 
+
+	en bas du module exporter la variable:
+	=> module.exports = app
+
+--------------------------	
+Ajouter les scripts de test
+--------------------------
+Dans package.json dans variables scripts ajouter:
+	"test:route": "jest --testTimeout=5000"       ou pour spécifier un .env    "test": "cross-env NODE_ENV=test jest --testTimeout=5000",
+	
+Si on veut utiliser un .env spécifique pour les tests ex: ".env.test" :
+	"test:route": "DOTENV_CONFIG_PATH=./.env.test jest --no-cache --testTimeout=30000 --detectOpenHandles",
+    "test:watch": "DOTENV_CONFIG_PATH=./.env.test jest --watchAll --testTimeout=30000 --detectOpenHandles",
+    "test:visuel": "DOTENV_CONFIG_PATH=./.env.test jest --coverage --testTimeout=50000 --detectOpenHandles"
+	"test:watch-visuel": "DOTENV_CONFIG_PATH=./.env.test jest --watchAll --coverage --testTimeout=50000 --detectOpenHandles"
+
+
+--------------------------	
+ Si test visuel updater gitignore
+--------------------------		
+Le test visuel "jest --coverage" créé un dissier "coverage" qu'il faut ajouter dans le .gitignore
+pour qu'il ne soit pas sauvegardé
+le contenu du fichier .gitignore doit au moins être le suivant:
+	node_modules
+	.env
+	.env.test
+	coverage/
+	package-lock.json
+
+
+--------------------------	
+Expliquer à jest où sont mes variables d'environnement
+--------------------------	
+	"jest": {
+	"setupFiles": [
+	  "dotenv/config"
+	]
+	},
+
+--------------------------	
+Création tests
+--------------------------
+voir exemple test sur https://github.com/Cocor31/GaleraProject.git dans dossier tests
+
+créer dossier "tests" à la racine du projet
+créer dedans dossier "tests" fichier route.test.js ou api.test.js, eleve.test.js etc.
+
+=> beforeEach et afterEach sont des Hooks. Les Hooks sont utilisable dans les models aussi. Ils servent à exécuter du code avant ou après.
+
+--------------------------		
+	Lancer test
+--------------------------	
+npm run test:route
+npm run test:watch  <= test en live un peu comme nodemon
+npm run test:visuel  <= version graphique test créer un dossier coverage/Icov_report/ avec un fichier live-server(à voir vidéo comment lancer le graph visuel)
+npm run test:watch-visuel  <= test visuel + live
+
+--------------------------		
+	Pour un test visuel dans Browser
+--------------------------	
+=> Lancer un test visuel pour générer le dossier "coverage"
+=> Il faut soit l'application live-server soit l'extention vscode "live-server(five-server)"
+Sous Vscode: Dans le dossier coverage faire un clic-droit sur le fichier index.html et faire "Open with Five Server"
+
+
+---------------
+Config d'une BDD Test Local
+---------------
+
+Voir vidéo du 20/11/2023 de 11h00 à 12h30
+
+#=====================================	
+#	Script création MariaDB
+#=====================================
+lien pour créer des scripts créants une database Mariadb
+https://geekdudes.wordpress.com/2020/07/16/linux-bash-script-for-creating-and-configuring-maria-database/
+
+deuxieme façon:
+https://debian-facile.org/utilisateurs:hypathie:config:script_creation_bdd_mysql_et_user
+
+---------------
+créer un script bash:
+---------------
+Sous debian:
+créer un dossier ou mettre le script:
+	mkdir scripts
+créer fichier .sh dans notre dossier:
+	cd scripts
+	touch hello.sh      ou    cat > hello.sh
+éditer fichier:
+	nano hello.sh
+	mettre en debut de script => #!/bin/bash
+	ecrire script exemple => echo “Hello World”
+lancer script:
+	bash hello.sh
+
+
+#=====================================	
+#	Deploiement Ci/Cd avec GitHub Action
+#=====================================
+vidéo Florian index 6 à partir de 1:04:00
+https://www.youtube.com/watch?v=JG2oindGfzE&list=PLwJWw4Pbl4w9bZcu6T57CYsxE95wSzGn7&index=6
+
+Extension vscode à installer si besoin:
+	=> GitHub Actions
+
+Dans Vscode à la base de notre project:
+	=> créer un fichier ".github/workflows/ci.yml"  (dossiers à créer aussi)
+	
+exemple de contenu pour test sur push sur branche main:
+
+name: CI
+on:
+    push:
+        branches: ["main"]
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+            - name: Setup Node
+              uses: actions/setup-node@v3
+              with:
+                node-version: 18.x
+            - name: Run Test
+              run: echo Test Workflow
+
+    routage:
+        needs: [test]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+            - name: Setup Node
+              uses: actions/setup-node@v3
+              with:
+                node-version: 18.x
+            - name: Install Dependencies
+              run: npm ci
+            - name: Test du routage
+              run: npm run test:route
+
+    deploy:
+        needs: [routage]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+            - name: Setup Node
+              uses: actions/setup-node@v3
+              with:
+                node-version: 18.x
+            - name: Start Deployement
+              run: echo Deploy
+
+
+---------------
+Création d'une base de donnée dans GitHub Action
+---------------
+exemple avec setup env variables dans .yml
+https://atlasgo.io/guides/testing/github-actions#:~:text=GitHub%20Actions%20allows%20you%20to,database%20to%20run%20tests%20against.
+
+exemple création avec docker getong/mariadb-action@v1.1
+https://github.com/marketplace/actions/start-mariadb
+
+exemple création Mariadb:
+https://firefart.at/post/using-mysql-service-with-github-actions/
+
+
+name: Tests
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:latest
+        ports:
+          - 3306
+        env:
+          MYSQL_USER: user
+          MYSQL_PASSWORD: password
+          MYSQL_DATABASE: test
+          MYSQL_ROOT_PASSWORD: password
+        options: --health-cmd="mysqladmin ping" --health-interval=5s --health-timeout=2s --health-retries=3
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Verify MariaDB connection
+        env:
+          PORT: ${{ job.services.mariadb.ports[3306] }}
+        run: |
+          while ! mysqladmin ping -h"127.0.0.1" -P"$PORT" --silent; do
+            sleep 1
+          done          
+
+      - name: Test
+        run: |
+                    your tests
+
+Autre exemple création MariaDB:
+https://ldarren.medium.com/number-of-ways-to-setup-database-in-github-actions-2cd48df9faae
+
+
+
+Mon exemple qui marche:			  
+voir commentaire sur 
+https://stackoverflow.com/questions/77295490/github-workflow-ci-with-mariadb-failed-to-initialize-container-mariadb
+https://rhysd.github.io/actionlint/#eJxtUl1rwjAUfe+vuPQ9opNtkNFBpcL2MDpah4+Sptma2SZd7q2y/fqlalWwBC5JzrkfOSdGNIpDI5wWZbFB5XZaKgwCazjsrdt+1na/KTW2gmQVBN+2QB4ASN1HANcZZD23KzpDHasFKaTggA3FjkwYmgxHAN2Ir0tzfsod0NY6wgsZgEE4n08feB/C870yu2vSW5y9xslik8SreBHnSw5lMQJ/5MvMD+1HHAHf4zxfp1nCoRWIXoVyhJSl6eqK6aylG7ZtSVuDHJ7Z9TtYpURNFZNNGYXHvayU3E6w8qC0xihJfqeNsd4UbTRpUes/VYZjZbQhr7Soo9kUx3DSjbIdRfejqFPktMJofjKNVHtWnYE5fI+8sntIFpd8b7v37Rd/6r6QRYLZ3eNk6tcMWNfLCqwd5ACmIMxf0jUMpuRPYfAPhUCvFQ==
+
+
+name: CI
+on:
+    push:
+        branches: ["MettreLeNom_main"]
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        services:
+            mariadb:
+              image: mariadb:latest
+              ports:
+                - "3306:3306"
+              env:
+                MARIADB_DATABASE: db_test
+                MARIADB_USER: user
+                MARIADB_PASSWORD: password
+                MARIADB_ROOT_PASSWORD: rootpassword
+              options: >-
+                --health-cmd="healthcheck.sh --connect --innodb_initialized"
+                --health-interval=10s
+                --health-timeout=5s
+                --health-retries=3
+        steps:
+            - name: Show DBs         
+              run: mysql --host 127.0.0.1 -uuser -ppassword -e "SHOW DATABASES;"
+            - name: Run Test
+              run: echo Test Workflow
+    routage:
+        needs: [test]
+        runs-on: ubuntu-latest
+        services:
+          mariadb:
+            image: mariadb:latest
+            ports:
+              - "3306:3306"
+            env:
+              MARIADB_DATABASE: GaleraTest
+              MARIADB_USER: roger
+              MARIADB_PASSWORD: regor
+              MARIADB_ROOT_PASSWORD: rootpassword
+            options: >-
+              --health-cmd="healthcheck.sh --connect --innodb_initialized"
+              --health-interval=10s
+              --health-timeout=5s
+              --health-retries=3
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+            - name: Setup Node
+              uses: actions/setup-node@v3
+              with:
+                node-version: 18.x
+            - name: Install Dependencies
+              run: npm ci
+            - name: Test du routage
+              run: npm run test:api
+            - name: Show DBs         
+              run: mysql --host 127.0.0.1 -uroger -pregor -e "SHOW DATABASES;"
+            - name: Show Tables
+              run: |
+                query1="use GaleraTest; SHOW TABLES;"
+                query2="use GaleraTest; SELECT * FROM Formations;"
+                mysql --host 127.0.0.1 -uroger -pregor -e "$query1"
+                mysql --host 127.0.0.1 -uroger -pregor -e "$query2"
+            - name: Insert Data Manualy in Table Formation
+              run: |
+                    query3="use GaleraTest; INSERT INTO Formations (nom, debut, fin, createdAt, updatedAt) 
+                    VALUES('Bdd', 1111111111, 1711111111, '2023-12-06 16:27:54', '2023-12-06 16:27:54' );"
+                    mysql --host 127.0.0.1 -uroger -pregor -e "$query3"
+            - name: Show Table Formation contain
+              run: |
+                  query4="use GaleraTest; SELECT * FROM Formations;"
+                  mysql --host 127.0.0.1 -uroger -pregor -e "$query4"
+			  
+			  
+
+voir exemple creation données dans database:
+https://geekdudes.wordpress.com/2020/07/16/linux-bash-script-for-creating-and-configuring-maria-database/
+
+autre exemple de création de données dans databases:
+https://ldarren.medium.com/number-of-ways-to-setup-database-in-github-actions-2cd48df9faae
+
+
+
+#=====================================	
+#	Deploiement sur Serveur grâce à GitHub Action avec Runner
+#=====================================
+vidéo Florian index 7
+https://www.youtube.com/watch?v=h_F8UGmr09g&list=PLwJWw4Pbl4w9bZcu6T57CYsxE95wSzGn7&index=7
+
+
+--------------------------		
+	Gestionnaire processus PM2
+--------------------------	
+
+
+#=====================================	
+#	Ajout d'un proxy pour ne pas exposé un port du serveur
+#=====================================
+vidéo Florian index 7  à partir de 1:02:00
+https://www.youtube.com/watch?v=h_F8UGmr09g&list=PLwJWw4Pbl4w9bZcu6T57CYsxE95wSzGn7&index=7
+
+
+sudo apt install nginx
+
+sudo nano default
+mettre:
+server{
+	listen 80;
+	location / {
+		proxy_pass http://127.0.0.1:9000;
+		proxy_http_version 1.1;
+		proxy_set_header Upgrade $http_upgrade;
+		proxy_set_header Connection 'upgrade';
+		proxy_set_header Host $host;
+		proxy_cache_bypass $http_upgrade;
+		}	
+}
+
+Dans groupe sécurité de notre instance Runner remplacer port 9000 par 80
+
+
+Maintenant quand sur notre browser va sur l'adresse de notre server et on n'a plus besoin de mettre le port dans l'adresse http
+
+	
+
+
+
+
+	
+			  
+#=====================================	
+#	BackUp BDD externalisée
+#=====================================
+voir vidéo Florian du 20/11/23
+voir cours Classroom : https://classroom.google.com/w/NjM2Mjk4NTY3MDc1/t/all
+
+Faire un simple dump dans Debian:
+	mysqldump -u admin -p roger > mysql_backup.sql
+
+Voir script Florian
+faire procedure de connexion au drive avec mon serveur (Debian)
+installer gdrive sur mon Debian
+créer script qui dump la bdd puis compresse puis envoi sur google drive avec commande gdrive
+	un script est en .sh  ex: mysql_backup.sh
+	voir détail script: 
+On peut ensuite lancer un routine avec crontab:
+	créer fichier log
+	log touch log_galera_backup.log
+Entrer dans crontab sur terminal debian: https://classroom.google.com/w/NjM2Mjk4NTY3MDc1/t/all
+		crontab -e
+Dans crontab ecrire:
+25 **** /home/florian/mysql_backup.sh > /home/florian/log_galera_backup.log
+
+
+taches automatisées:  crontab sur linux
+
+
+
+
+
+
+
+#=====================================	
+#	Commenter Synchronisation des modèles
+#=====================================
+
+/!\ Cette synchronisation des modèles est à commenter une fois que l'application est stable.
+
+merger une branche:
+	On se met sur la branch main en double cliquant dessus
+	On fait un clic droit sur la branch dev => Merge into current branch
+
+
+
+
+#=====================================	
+#	Synthèse de mes connexion SSH
+#=====================================
+SG-1 	ssh -i ".\.ssh\amazon_ssh.pem" admin@13.39.87.148		172.31.36.222
+SG-2 	ssh -i ".\.ssh\amazon_ssh.pem" admin@13.37.213.150		172.31.43.88
+SG-3	ssh -i ".\.ssh\amazon_ssh.pem" admin@52.47.173.209		172.31.43.255
+HAPROXY ssh -i ".\.ssh\amazon_ssh.pem" admin@35.180.32.146	
+
+Dossier dev API: Debian: GaleraProject
+
+
+Voir la suite en prenant la vidéo (dernière partie)
+https://www.youtube.com/watch?v=pr7msz-Q1DQ
+
+Peut etre celle de Stéphanie:
+https://drive.google.com/file/d/1Ao1ccb6Bk3wkqQ0jZDHAw3iTlM6GvXQd/view?usp=drive_link
+
+Vidéo fin Ando:
+https://www.youtube.com/live/pr7msz-Q1DQ?si=7kasq7pkj-Tc66fN
+
+
+
+
+
+
+Ma doc API https://documenter.getpostman.com/view/30530478/2s9YXmZ1Xm
+https://documenter.getpostman.com/view/30530478/2s9YXmZ1Xm#0d7bbf0f-cfae-4b26-bbd1-0ebea2ad4a5c

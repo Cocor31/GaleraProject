@@ -1,0 +1,472 @@
+##############################################################################
+#	Déploiement Projet sur server avec GitHub Action
+##############################################################################
+Date 13/11/2023
+
+
+Je suis dans Linux
+Je fais une api
+J'envoi sur gitHub la main
+Je créer la branch dev
+Je push la branch dev sur GitHub
+J'installe les paquet pour les tests:
+	npm i -D jest supertest      <=  -D pour qu'ils se mettentent sous devDependance dans package.json
+	
+	
+#=====================================	
+#	Création tests
+#=====================================
+Doc Jest:
+https://jestjs.io/fr/docs/expect#expectanyconstructor
+	
+Création tests
+créer dossier tests à la racine du projet
+créer dedans dossier tests fichier route.test.js
+
+
+mettre dedans:
+
+	const request= require('supertest')
+	let server
+
+
+	describe('ROUTE TEST', () => {
+		beforeEach(()=>{
+		server = require('../server')
+		})
+		
+		afterEach(()=>{
+			server.close()
+		})
+
+
+		describe('GET TRY', () =>{
+			it('Should return 200 status', async ()=> {
+				const response = await request(server).get('/')
+				expect(response.status).toBe(200)
+			})
+			it('Should return 501 status', async ()=> {
+				const response = await request(server).get('/marcel')
+				expect(response.status).toBe(501)
+			})
+			
+
+		}
+		
+		describe('POST TRY', () =>{
+			it('Should return 200 status', async ()=> {
+				const response = await request(server).post('/auth/login')
+				expect(response.status).toBe(200)
+			})
+		}
+	})
+
+
+dans package.json:
+ajouter les script de lancement test:
+sous script:
+	"test:route": "jest",
+	"test:watch": "jest --watchAll"
+	"test:visuel": "jest --coverage"
+	"test:watch-visuel": "jest --watchAll --coverage"
+	
+ajouter après variable script de lancement la variable jest comme ceci:
+	"jest": {
+	"setupFiles": [
+	  "dotenv/config"
+	]
+	},
+
+#=====================================	
+#	Config d'une BDD Test Local
+#=====================================	
+
+Voir vidéo du 20/11/2023 de 11h00 à 12h30
+
+
+#=====================================	
+#	Lancer test
+#=====================================	
+npm run test:watch
+npm run test:watch  <= test en live un peu comme nodemon
+npm run test:visuel  <= version graphique test créer un dossier coverage/Icov_report/ avec un fichier live-server(à voir vidéo comment lancer le graph visuel)
+npm run test:watch-visuel  <= test visuel + live
+
+#=====================================	
+#	Envoyer test sur gitHUb
+#=====================================	
+
+peut etre ajouter dans gitigniore
+	"coverage"   <=  pour ne pas envoyer le dossier de test visuel dans GitHub
+git add .
+git commit
+git push origin dev
+=> On doit voir son dossier "test" sur GitHub
+
+#=====================================	
+#	Création Action dans GitHub
+#=====================================	
+ définition ci/cd : Intégration continu / Déploiement continue 
+
+dans vscode extension github action
+
+----------------------------------------------------------------
+OPération annulée à cause de désynchronisation possible
+	sur gitHub
+	branch dev
+	=> cliquer sur Action
+	=> setup a workflow
+	renommer yml en workflow.yml en first.yml
+----------------------------------------------------------------
+
+(la branch de deploiement est toujours la main)
+(attention indentation yml strict)
+
+dans vscode
+recupérer branch main:
+	checkout main?
+	
+merger branch dev sur main
+
+créer dossier .github puis workflows dedans:
+créer fichier first.yml
+dedans écrire:
+name: First test
+
+
+on:
+	push:
+		branches: ["main"]
+		
+jobs:
+	test:
+		runs-on: ubunto-latest
+		
+		steps:
+			- name: Checkout
+			  uses: actions/checkout@v3
+			- name: Setup Node
+			  uses: actions/setup-node@v3
+			  with:
+				node-version: 18.x
+			- name: Run Rodrigo
+			  run: echo Rodrigo
+			  
+	routage:
+		needs: [test]
+		runs-on: ubunto-latest
+		
+		steps:
+			- name: Checkout
+			  uses: actions/checkout@v3
+			- name: Setup Node
+			  uses: actions/setup-node@v3
+			  with:
+				node-version: 18.x
+				
+			- name: Install Dependencies
+			  run: npm ci
+			- name: Test du routage
+			  run: npm run test:route
+			  
+	deploy:
+		needs: [routage]
+		runs-on: ubunto-latest
+		
+		steps:
+			- name: Checkout
+			  uses: actions/checkout@v3
+			- name: Setup Node
+			  uses: actions/setup-node@v3
+			  with:
+				node-version: 18.x
+				
+			- name: Install Dependencies
+			  run: npm ci
+			- name: Start deployement
+			  run: echo Deploy
+				
+				
+mettre à jour projet sur gitHub
+git add .
+git commit
+git push				
+				
+maintenant lorsque je vais faire un git push origine main il va me lancer le test avec ce fichier
+
+
+Voir Action dans GitHub
+onglet action sur repository
+
+
+#=====================================	
+#	Deploiement avec GitHub Action
+#=====================================	
+
+on utilise le runner GitHub dans notre environnement à nous
+
+
+dans gitHub Stettings -> runner
+=> Créer Runner -> voir code
+
+
+Se connecter sur la machine sur laquuelle on veut déployer le projet github.
+Dans notre exemple on se connecte en ssh à une instance AWS EC2
+Créer une clé ssh spécifique à cette instance car la clé ssh sera dans github. Mettre clé public dans AWS et garedr clé privée sur PC (dans l'exemple sur Window dans .ssh)
+Création d'une instance spécifique ("Runner") en selectionant cette clé ssh
+Ouvrir port de notre DB_PORT .env sur le groupe de sécurité (ici TCP 9000 0.0.0.0/0
+
+Se connecter (avec powershell dans vscode ou PC) en shh à notre instance Runner sur son IP public:
+	ssh -i ".\.ssh\amazon_ssh.pem" admin@13.39.87.148    <= adresse ip public de notre instance Runner
+	
+Installer paquets sur machine debian sur laquel on est connectée en ssh (sur chacun des serveurs):
+	sudo apt update && sudo apt upgrade -y
+	sudo apt install net-tools
+	sudo apt install nodejs                      <= Nécessaire
+	=> a partir de là on colle la précédure GitHub:
+	Download..
+	-> mkdir ...
+	....
+	
+	
+sur GitHub dans Runners on doit maintenant voir la machine de notre runner
+
+
+
+Lancer server Runner indépendament de notre terminal (comme en tache de fond)
+sudo ./svc......
+
+
+Dans fichier yml:
+	runs-on: self-hosted
+		deploy:
+			needs: [routage]
+			runs-on: self-hosted
+			
+			steps:
+				- name: Checkout
+				  uses: actions/checkout@v3
+				- name: Setup Node
+				  uses: actions/setup-node@v3
+				  with:
+					node-version: 18.x
+					
+				- name: Install Dependencies
+				  run: npm ci
+				- name: Start API
+				  run: npm run start
+				  
+				  
+				  
+En cas de blocage sur deploiement aller sur GitHub et faire Cancel Workflow
+
+-------------------------------------
+	Utilisation de PM2 pour lancer
+-----------------------------------------
+PM2 pour lancer processu sans blocage
+	sudo npm i -g pm2
+	
+	
+pm2 start server.js
+pm2 stop 0
+pm2 delete 0
+
+ajouter variables d'environnememt pour pm2
+ajouter fichiers "pm2.config.js" à la racine de notre projet
+mettre à l'intérieur:
+module.exports={
+apps: [
+]
+}
+
+
+Dans fichier yml modifier le run du start API avec le démarrage par pm2:
+	runs-on: self-hosted
+		deploy:
+			needs: [routage]
+			runs-on: self-hosted
+			
+			steps:
+				- name: Checkout
+				  uses: actions/checkout@v3
+				- name: Setup Node
+				  uses: actions/setup-node@v3
+				  with:
+					node-version: 18.x
+					
+				- name: Install Dependencies
+				  run: npm ci
+				- name: Start API
+				  run: pm2 restart pm2.config.js
+				  
+				  
+				  
+
+#=====================================	
+#	Mettre en place proxy
+#=====================================	
+
+sudo apt install nginx
+
+sudo nano default
+mettre:
+server{
+	listen 80;
+	location / {
+		proxy_pass http://127.0.0.1:9000;
+		proxy_http_version 1.1;
+		proxy_set_header...
+		......
+		}
+		
+}
+
+Dans groupe sécurité de notre instance Runner remplacer port 9000 par 80
+
+
+Maintenant quand sur notre browser va sur l'adresse de notre server et on n'a plus besoin de mettre le port dans l'adresse http
+
+
+
+#=====================================	
+#	Deploiement en Green/Blue (déploiement canari)
+#=====================================
+Le but est d'automatiser un déploiement sur #blue ou #green lorsqu'on fait un commit contenant un des deux labels 
+
+GitHub Action  en blue/green
+
+dans fichier first.yml
+faire de deploiements différent un bleu un green
+
+contenu du fchier
+name: First test
+
+
+on:
+	push:
+		branches: ["main"]
+		
+jobs:
+	test:
+		runs-on: ubunto-latest
+		
+		steps:
+			- name: Checkout
+			  uses: actions/checkout@v3
+			- name: Setup Node
+			  uses: actions/setup-node@v3
+			  with:
+				node-version: 18.x
+			- name: Run Rodrigo
+			  run: echo Rodrigo
+			  
+	routage:
+		needs: [test]
+		runs-on: ubunto-latest
+		
+		steps:
+			- name: Checkout
+			  uses: actions/checkout@v3
+			- name: Setup Node
+			  uses: actions/setup-node@v3
+			  with:
+				node-version: 18.x
+				
+			- name: Install Dependencies
+			  run: npm ci
+			- name: Test du routage
+			  run: npm run test:route
+			  
+	deployBlue:
+		if: ${{ contains(github.event.head_commit.message, '#blue')}}
+		needs: routage
+		uses: ./.github/workflows/db.yml
+		
+		deployBlue:
+		if: ${{ contains(github.event.head_commit.message, '#green')}}
+		needs: routage
+		uses: ./.github/workflows/dg.yml
+			  
+
+			  
+			  
+créer db.yml pour (deployBlue yml)
+contenu du fichier:
+
+name: Deploy on blue server
+
+
+on:
+	workflow_call
+		
+jobs:
+	deploy:
+		runs-on: [self-hosted, Blue]
+		
+		steps:
+			- name: Checkout
+			  uses: actions/checkout@v3
+			- name: Setup Node
+			  uses: actions/setup-node@v3
+			  with:
+				node-version: 18.x
+				
+			- name: Install Dependencies
+			  run: npm ci
+			- name: Start API
+			  run: pm2 restart pm2.config.js
+			  ...
+
+créer dg.yml pour (deployGreen yml)
+contenu du fichier:
+
+name: Deploy on green server
+
+
+on:
+	workflow_call
+		
+jobs:
+	deploy:
+		runs-on: [self-hosted, Green]
+		
+		steps:
+			- name: Checkout
+			  uses: actions/checkout@v3
+			- name: Setup Node
+			  uses: actions/setup-node@v3
+			  with:
+				node-version: 18.x
+				
+			- name: Install Dependencies
+			  run: npm ci
+			- name: Start API
+			  run: pm2 restart pm2.config.js
+			  ...
+			  
+Créer runner sur GitHub:
+	- instance linux			  
+			  
+Du coup il nous faut 2 serveurs différents un pour le blue, un pour le green.
+Donc on crée 2 instances AWS EC2 qui s'appeleront GH-Blue et GH-Green pour l'exercice
+ouvrir port 9000 dans les groups de sécutité de chaques machine
+
+On se connecte en ssh aux 2 instances avec l'adresse public des serveurs
+on installe les pacquets sur chacunes des machines:
+	sudo apt update && sudo apt upgrade -y
+	sudo apt install net-tools
+	sudo apt install nodejs                      <= Nécessaire
+	sudo apt install npm
+	
+	sudo npm i -g pm2
+	copier les lignes de commande gitHub
+	mkdir ...
+	...
+	
+	=> label: #blue #green
+	
+	sudo ./svc.sh install
+	sudo ./svc.sh start
+
+Sur github on peut voir les labels
+
