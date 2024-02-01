@@ -662,12 +662,13 @@ On peut faire le test en redémarrant le server si on l'avait arréter:
 #=====================================
 
 info compte:
-@: cocor31+mongo@live.fr
-M: n****
+voir fichier MDP tel
+
 Project: GaleraProject
-U: cocor31
-P: Auz40ww05l991chc
-connection string: mongodb+srv://cocor31:Auz40ww05l991chc@galera.tnd8mfi.mongodb.net/?retryWrites=true&w=majority
+voir GaleraProject.env sur drive
+U: Username
+P: Password
+connection string: mongodb+srv://Username:Password@galera.tnd8mfi.mongodb.net/?retryWrites=true&w=majority
 --------------------------
 Créer un compte sur https://www.mongodb.com/products/platform/cloud ou utiliser un compte existant en utilisant https://cloud.mongodb.com/
 
@@ -696,7 +697,7 @@ Récupérer connection string template et remplacer le password par celui du use
 #	Connexion BDD Atlas
 #=====================================
 Ajouter la connection string mongo dans ".env":
-	MONGODB_URL=mongodb+srv://cocor31:Auz40ww05l991chc@galera.tnd8mfi.mongodb.net/?retryWrites=true&w=majority
+	MONGODB_URL=mongodb+srv://Username:Password@galera.tnd8mfi.mongodb.net/?retryWrites=true&w=majority
 
 dans server.js ajouter import de mongoose:
 	const mongoose = require('mongoose')
