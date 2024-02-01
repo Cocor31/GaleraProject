@@ -680,8 +680,8 @@ créer déploiment:
 	-> Create
 
 Récupérer username et password pour l'admin du cluster Galera
-U: cocor31
-P: Auz40ww05l991chc
+	U: Username -> voir GaleraProject.env sur drive
+	P: Password -> voir GaleraProject.env sur drive
 	-> Create User
 	-> Select "Cloud Environnement
 	-> Ajouter IP 0.0.0.0/0 -> Add Entry
